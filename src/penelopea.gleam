@@ -19,6 +19,16 @@ pub fn preview() -> String {
   element.to_string(pea(init(Nil)))
 }
 
+pub fn preview_with(
+  frame frame: Int,
+  spread spread: Int,
+  border_width border_width: Int,
+) -> String {
+  let model =
+    Model(..init(Nil), frame: frame, spread: spread, border_width: border_width)
+  element.to_string(pea(model))
+}
+
 type Eyes {
   Dot
   Happy
@@ -117,14 +127,10 @@ fn pea(model: Model) -> Element(Message) {
   // pupils sit inset from the lens centre, towards the bridge, rather than
   // dead in the middle of the lens
   let pupil_x = eye_x - model.frame * 4 / 10
-  // gap between the inner edges of the lenses, so the bridge always spans it
-  // and never collapses into a blob once the outline gets thick
+  // gap between the inner edges of the lenses, so the bridge always spans
+  // exactly that space (never wider, or it overshoots past the lens rims)
   let gap = eye_x - model.frame
-  let min_gap = int.max(model.border_width, 3)
-  let half_gap = case gap < min_gap {
-    True -> min_gap
-    False -> gap
-  }
+  let half_gap = int.max(gap, 2)
 
   html.svg(
     [
