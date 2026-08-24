@@ -1,10 +1,19 @@
 import gleam/int
+import gleam/list
+import gleam/result
+import gleam/uri
 import lustre
 import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html
 import lustre/element/svg
 import lustre/event
+
+@external(javascript, "./penelopea_ffi.mjs", "get_query")
+fn get_query() -> String
+
+@external(javascript, "./penelopea_ffi.mjs", "set_query")
+fn set_query(query: String) -> Nil
 
 pub fn main() {
   let app = lustre.simple(init, update, view)
@@ -60,16 +69,19 @@ type Model {
 }
 
 fn init(_) -> Model {
-  Model(
-    frame: 18,
-    spread: 6,
-    curl: 15,
-    eyes: Dot,
-    mouth_y: 0,
-    mouth_width: 4,
-    mood: 4,
-    border_width: 4,
-  )
+  let defaults =
+    Model(
+      frame: 18,
+      spread: 6,
+      curl: 15,
+      eyes: Dot,
+      mouth_y: 0,
+      mouth_width: 4,
+      mood: 4,
+      border_width: 4,
+    )
+
+  model_from_query(get_query(), defaults)
 }
 
 type Message {
@@ -84,7 +96,7 @@ type Message {
 }
 
 fn update(model: Model, message: Message) -> Model {
-  case message {
+  let new_model = case message {
     UserMovedFrame(value) -> Model(..model, frame: value)
     UserMovedSpread(value) -> Model(..model, spread: value)
     UserMovedCurl(value) -> Model(..model, curl: value)
@@ -93,6 +105,77 @@ fn update(model: Model, message: Message) -> Model {
     UserMovedMouthWidth(value) -> Model(..model, mouth_width: value)
     UserMovedMood(value) -> Model(..model, mood: value)
     UserMovedBorderWidth(value) -> Model(..model, border_width: value)
+  }
+
+  set_query(model_to_query(new_model))
+  new_model
+}
+
+fn eyes_to_string(eyes: Eyes) -> String {
+  case eyes {
+    Dot -> "dot"
+    Happy -> "happy"
+    Round -> "round"
+    Wide -> "wide"
+    Flat -> "flat"
+    Wink -> "wink"
+  }
+}
+
+fn eyes_from_string(value: String) -> Eyes {
+  case value {
+    "happy" -> Happy
+    "round" -> Round
+    "wide" -> Wide
+    "flat" -> Flat
+    "wink" -> Wink
+    _ -> Dot
+  }
+}
+
+fn model_to_query(model: Model) -> String {
+  [
+    #("frame", int.to_string(model.frame)),
+    #("spread", int.to_string(model.spread)),
+    #("curl", int.to_string(model.curl)),
+    #("eyes", eyes_to_string(model.eyes)),
+    #("mouth_y", int.to_string(model.mouth_y)),
+    #("mouth_width", int.to_string(model.mouth_width)),
+    #("mood", int.to_string(model.mood)),
+    #("border_width", int.to_string(model.border_width)),
+  ]
+  |> uri.query_to_string
+}
+
+fn model_from_query(query: String, defaults: Model) -> Model {
+  case uri.parse_query(query) {
+    Error(_) -> defaults
+    Ok(pairs) -> {
+      let get_int = fn(key: String, min: Int, max: Int, fallback: Int) -> Int {
+        pairs
+        |> list.key_find(key)
+        |> result.try(int.parse)
+        |> result.map(int.clamp(_, min: min, max: max))
+        |> result.unwrap(fallback)
+      }
+
+      let eyes =
+        pairs
+        |> list.key_find("eyes")
+        |> result.map(eyes_from_string)
+        |> result.unwrap(defaults.eyes)
+
+      Model(
+        frame: get_int("frame", 8, 26, defaults.frame),
+        spread: get_int("spread", 0, 14, defaults.spread),
+        curl: get_int("curl", 10, 60, defaults.curl),
+        eyes: eyes,
+        mouth_y: get_int("mouth_y", -4, 6, defaults.mouth_y),
+        mouth_width: get_int("mouth_width", 1, 8, defaults.mouth_width),
+        mood: get_int("mood", -6, 8, defaults.mood),
+        border_width: get_int("border_width", 2, 8, defaults.border_width),
+      )
+    }
   }
 }
 
