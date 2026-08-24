@@ -1,11 +1,17 @@
+:root {
+    --border: rgb(11, 71, 53);
+}
+
 body {
     font-family: system-ui, sans-serif;
 }
 
 #app {
-    > div {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.5rem;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+
+    svg {
+        grid-column: 1 / -1;
     }
 }
