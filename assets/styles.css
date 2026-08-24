@@ -10,6 +10,8 @@ body {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
+    max-width: 30rem;
+    margin: 0 auto;
 
     svg {
         grid-column: 1 / -1;
