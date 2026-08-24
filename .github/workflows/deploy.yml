@@ -24,8 +24,9 @@ jobs:
       - name: Set up Erlang & Gleam
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "27"
+          otp-version: "28"
           gleam-version: "1.18.1"
+          rebar3-version: "3"
 
       - name: Build production bundle
         run: gleam run -m lustre/dev build --minify=True --outdir=dist
