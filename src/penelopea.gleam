@@ -28,8 +28,8 @@ type Model {
     frame: Int,
     // how far apart the lenses sit from the centre
     spread: Int,
-    // how wide the leaves on top splay open, 0-60
-    leaves: Int,
+    // how much the curly tendril hat leans left/right, in degrees
+    curl: Int,
     // which eye shape is drawn inside the lenses
     eyes: Eyes,
     // vertical position of the mouth
@@ -38,41 +38,60 @@ type Model {
     mouth_width: Int,
     // mouth curve, negative frowns, positive smiles
     mood: Int,
+    // thickness of the outlines, for that kawaii chunky look
+    border_width: Int,
   )
 }
 
 fn init(_) -> Model {
   Model(
     frame: 18,
-    spread: 4,
-    leaves: 30,
+    spread: 6,
+    curl: 15,
     eyes: Dot,
-    mouth_y: 2,
-    mouth_width: 3,
-    mood: 4,
+    mouth_y: 6,
+    mouth_width: 5,
+    mood: 6,
+    border_width: 4,
   )
 }
 
 type Message {
   UserMovedFrame(Int)
   UserMovedSpread(Int)
-  UserMovedLeaves(Int)
+  UserMovedCurl(Int)
   UserSelectedEyes(Eyes)
   UserMovedMouthY(Int)
   UserMovedMouthWidth(Int)
   UserMovedMood(Int)
+  UserMovedBorderWidth(Int)
 }
 
 fn update(model: Model, message: Message) -> Model {
   case message {
     UserMovedFrame(value) -> Model(..model, frame: value)
     UserMovedSpread(value) -> Model(..model, spread: value)
-    UserMovedLeaves(value) -> Model(..model, leaves: value)
+    UserMovedCurl(value) -> Model(..model, curl: value)
     UserSelectedEyes(value) -> Model(..model, eyes: value)
     UserMovedMouthY(value) -> Model(..model, mouth_y: value)
     UserMovedMouthWidth(value) -> Model(..model, mouth_width: value)
     UserMovedMood(value) -> Model(..model, mood: value)
+    UserMovedBorderWidth(value) -> Model(..model, border_width: value)
   }
+}
+
+fn view(model: Model) -> Element(Message) {
+  element.fragment([
+    pea(model),
+    control("Lens size", model.frame, 8, 26, UserMovedFrame),
+    control("Eye spread", model.spread, 0, 14, UserMovedSpread),
+    control("Curl", model.curl, -60, 60, UserMovedCurl),
+    control("Border", model.border_width, 2, 8, UserMovedBorderWidth),
+    control("Mouth height", model.mouth_y, -8, 16, UserMovedMouthY),
+    control("Mouth width", model.mouth_width, 1, 12, UserMovedMouthWidth),
+    control("Mood", model.mood, -6, 10, UserMovedMood),
+    eyes_picker(model.eyes),
+  ])
 }
 
 const border = "rgb(11, 71, 53)"
@@ -85,104 +104,108 @@ const skin_dark = "#2e6b1a"
 
 const leaf_fill = "#6fae3e"
 
-fn view(model: Model) -> Element(Message) {
+/// Renders the whole pea mascot as an SVG, purely as a function of the model.
+fn pea(model: Model) -> Element(Message) {
   let frame = int.to_string(model.frame)
   let eye_x = model.frame + model.spread
   // pupils sit inset from the lens centre, towards the bridge, rather than
   // dead in the middle of the lens
   let pupil_x = eye_x - model.frame * 7 / 10
   // gap between the inner edges of the lenses, so the bridge always spans it
+  // and never collapses into a blob once the outline gets thick
   let gap = eye_x - model.frame
-  let half_gap = case gap < 2 {
-    True -> 2
+  let min_gap = int.max(model.border_width, 3)
+  let half_gap = case gap < min_gap {
+    True -> min_gap
     False -> gap
   }
 
-  element.fragment([
-    html.svg(
-      [
-        attribute.attribute("viewBox", "-60 -66 120 132"),
-        attribute.attribute("stroke-width", "2"),
-        attribute.attribute("stroke-linecap", "round"),
-        attribute.attribute("stroke", border),
-      ],
-      [
-        svg.defs([], [
-          svg.radial_gradient(
-            [
-              attribute.id("skin"),
-              attribute.attribute("cx", "35%"),
-              attribute.attribute("cy", "30%"),
-              attribute.attribute("r", "75%"),
-            ],
-            [
-              svg.stop([
-                attribute.attribute("offset", "0%"),
-                attribute.attribute("stop-color", skin_light),
-              ]),
-              svg.stop([
-                attribute.attribute("offset", "55%"),
-                attribute.attribute("stop-color", skin_mid),
-              ]),
-              svg.stop([
-                attribute.attribute("offset", "100%"),
-                attribute.attribute("stop-color", skin_dark),
-              ]),
-            ],
-          ),
-        ]),
-        // leaves, sprouting from the top like a little hat
-        leaf(-model.leaves),
-        leaf(model.leaves),
-        svg.circle([
-          attribute.attribute("fill", "url(#skin)"),
-          attribute.attribute("r", "48"),
-        ]),
-        svg.g(
+  html.svg(
+    [
+      attribute.attribute("viewBox", "-64 -96 128 168"),
+      attribute.attribute("stroke-width", int.to_string(model.border_width)),
+      attribute.attribute("stroke-linecap", "round"),
+      attribute.attribute("stroke", border),
+    ],
+    [
+      svg.defs([], [
+        svg.radial_gradient(
           [
-            attribute.attribute("data-name", "glasses"),
-            attribute.attribute("fill", "none"),
+            attribute.id("skin"),
+            attribute.attribute("cx", "35%"),
+            attribute.attribute("cy", "30%"),
+            attribute.attribute("r", "75%"),
           ],
           [
-            svg.circle([
-              attribute.attribute("r", frame),
-              attribute.attribute("cx", int.to_string(-eye_x)),
-              attribute.attribute("cy", "-2"),
+            svg.stop([
+              attribute.attribute("offset", "0%"),
+              attribute.attribute("stop-color", skin_light),
             ]),
-            bridge(half_gap),
-            svg.circle([
-              attribute.attribute("r", frame),
-              attribute.attribute("cx", int.to_string(eye_x)),
-              attribute.attribute("cy", "-2"),
+            svg.stop([
+              attribute.attribute("offset", "55%"),
+              attribute.attribute("stop-color", skin_mid),
             ]),
-            eye(model.eyes, -pupil_x, is_left: True),
-            eye(model.eyes, pupil_x, is_left: False),
-            mouth(model.mouth_y, model.mouth_width, model.mood),
+            svg.stop([
+              attribute.attribute("offset", "100%"),
+              attribute.attribute("stop-color", skin_dark),
+            ]),
           ],
         ),
-      ],
-    ),
-    control("Lens size", model.frame, 8, 26, UserMovedFrame),
-    control("Eye spread", model.spread, 0, 14, UserMovedSpread),
-    control("Leaves", model.leaves, 0, 60, UserMovedLeaves),
-    control("Mouth height", model.mouth_y, -8, 16, UserMovedMouthY),
-    control("Mouth width", model.mouth_width, 1, 12, UserMovedMouthWidth),
-    control("Mood", model.mood, -6, 10, UserMovedMood),
-    eyes_picker(model.eyes),
-  ])
+      ]),
+      // soft shadow puddle underneath the pea
+      svg.ellipse([
+        attribute.attribute("stroke", "none"),
+        attribute.attribute("fill", skin_dark),
+        attribute.attribute("opacity", "0.6"),
+        attribute.attribute("cx", "0"),
+        attribute.attribute("cy", "50"),
+        attribute.attribute("rx", "32"),
+        attribute.attribute("ry", "6"),
+      ]),
+      // a curly tendril, like a little hat
+      hat(model.curl),
+      svg.circle([
+        attribute.attribute("fill", "url(#skin)"),
+        attribute.attribute("r", "48"),
+      ]),
+      svg.g(
+        [
+          attribute.attribute("data-name", "glasses"),
+          attribute.attribute("fill", "none"),
+        ],
+        [
+          svg.circle([
+            attribute.attribute("r", frame),
+            attribute.attribute("cx", int.to_string(-eye_x)),
+            attribute.attribute("cy", "-2"),
+          ]),
+          bridge(half_gap),
+          svg.circle([
+            attribute.attribute("r", frame),
+            attribute.attribute("cx", int.to_string(eye_x)),
+            attribute.attribute("cy", "-2"),
+          ]),
+          eye(model.eyes, -pupil_x, is_left: True),
+          eye(model.eyes, pupil_x, is_left: False),
+          mouth(model.mouth_y, model.mouth_width, model.mood),
+        ],
+      ),
+    ],
+  )
 }
 
 fn bridge(half_gap: Int) -> Element(Message) {
-  let radius = int.to_string(half_gap + 3)
+  let radius = int.to_string(half_gap + 2)
   let x = int.to_string(half_gap)
   let width = int.to_string(half_gap * 2)
   svg.path([
     attribute.attribute("fill", "none"),
+    attribute.attribute("stroke-linecap", "butt"),
     attribute.attribute(
       "d",
       "M-"
         <> x
-        <> ",-4 a "
+        <> ",-6 a "
         <> radius
         <> ","
         <> radius
@@ -193,20 +216,31 @@ fn bridge(half_gap: Int) -> Element(Message) {
   ])
 }
 
-fn leaf(angle: Int) -> Element(Message) {
+fn hat(curl: Int) -> Element(Message) {
   svg.g(
     [
       attribute.attribute(
         "transform",
-        "translate(0 -48) rotate(" <> int.to_string(angle) <> ")",
+        "translate(0 -48) rotate(" <> int.to_string(curl) <> ")",
       ),
     ],
     [
+      // a small leaf sprouting where the tendril meets the pea
+      svg.g([attribute.attribute("transform", "translate(-3 -4) rotate(-50)")], [
+        svg.path([
+          attribute.attribute("fill", leaf_fill),
+          attribute.attribute(
+            "d",
+            "M0,0 C -7,-6 -7,-16 0,-22 C 7,-16 7,-6 0,0 Z",
+          ),
+        ]),
+      ]),
+      // the curling tendril itself, tapering to a point
       svg.path([
-        attribute.attribute("fill", leaf_fill),
+        attribute.attribute("fill", "none"),
         attribute.attribute(
           "d",
-          "M0,0 C -9,-10 -9,-25 0,-34 C 9,-25 9,-10 0,0 Z",
+          "M0,0 A 8,8 0 0 1 0,-16 A 6,6 0 0 0 0,-28 A 4,4 0 0 1 3,-35",
         ),
       ]),
     ],
@@ -219,10 +253,10 @@ fn eye(shape: Eyes, x: Int, is_left is_left: Bool) -> Element(Message) {
   case shape, is_left {
     Dot, _ -> eye_dot(x)
     Happy, _ -> eye_caret(x)
-    Round, _ -> eye_ring(x, 3)
-    Wide, _ -> eye_ring(x, 5)
+    Round, _ -> eye_ring(x, 4)
+    Wide, _ -> eye_ring(x, 6)
     Flat, _ -> eye_flat(x)
-    Wink, True -> eye_ring(x, 3)
+    Wink, True -> eye_ring(x, 4)
     Wink, False -> eye_caret(x)
   }
 }
@@ -231,7 +265,7 @@ fn eye_dot(x: Int) -> Element(Message) {
   svg.circle([
     attribute.attribute("stroke", "none"),
     attribute.attribute("fill", border),
-    attribute.attribute("r", "1.6"),
+    attribute.attribute("r", "2.4"),
     attribute.attribute("cx", int.to_string(x)),
     attribute.attribute("cy", int.to_string(eye_y)),
   ])
@@ -252,17 +286,17 @@ fn eye_caret(x: Int) -> Element(Message) {
     attribute.attribute(
       "d",
       "M"
-        <> int.to_string(x - 3)
+        <> int.to_string(x - 4)
         <> ","
-        <> int.to_string(eye_y + 3)
+        <> int.to_string(eye_y + 4)
         <> " L"
         <> int.to_string(x)
         <> ","
-        <> int.to_string(eye_y - 1)
+        <> int.to_string(eye_y - 2)
         <> " L"
-        <> int.to_string(x + 3)
+        <> int.to_string(x + 4)
         <> ","
-        <> int.to_string(eye_y + 3),
+        <> int.to_string(eye_y + 4),
     ),
   ])
 }
@@ -273,11 +307,11 @@ fn eye_flat(x: Int) -> Element(Message) {
     attribute.attribute(
       "d",
       "M"
-        <> int.to_string(x - 3)
+        <> int.to_string(x - 4)
         <> ","
         <> int.to_string(eye_y)
         <> " L"
-        <> int.to_string(x + 3)
+        <> int.to_string(x + 4)
         <> ","
         <> int.to_string(eye_y),
     ),
