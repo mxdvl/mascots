@@ -163,6 +163,9 @@ fn pea(model: Model) -> Element(Message) {
             ]),
           ],
         ),
+        svg.clip_path([attribute.id("lens")], [
+          svg.circle([attribute.attribute("r", frame)]),
+        ]),
       ]),
       // shadow
       svg.ellipse([
@@ -201,17 +204,61 @@ fn pea(model: Model) -> Element(Message) {
             attribute.attribute("cx", int.to_string(-eye_x)),
             attribute.attribute("cy", "-2"),
           ]),
+          lens_glass(-eye_x, model.frame),
           bridge(half_gap),
           svg.circle([
             attribute.attribute("r", frame),
             attribute.attribute("cx", int.to_string(eye_x)),
             attribute.attribute("cy", "-2"),
           ]),
+          lens_glass(eye_x, model.frame),
           eye(model.eyes, -pupil_x, is_left: True),
           eye(model.eyes, pupil_x, is_left: False),
           mouth(model.mouth_y, model.mouth_width, model.mood),
         ],
       ),
+    ],
+  )
+}
+
+fn lens_glass(cx: Int, radius: Int) -> Element(Message) {
+  let shine_width = int.to_string(int.max(radius / 5, 2))
+  let x1 = int.to_string(-radius * 4 / 5)
+  let y1 = int.to_string(-radius * 4 / 5)
+  let x2 = int.to_string(radius / 6)
+  let y2 = int.to_string(-radius / 6)
+  let shadow_cx = int.to_string(radius / 2)
+  let shadow_cy = int.to_string(radius / 2)
+  let shadow_r = int.to_string(radius * 7 / 10)
+  svg.g(
+    [
+      attribute.attribute(
+        "transform",
+        "translate(" <> int.to_string(cx) <> " -2)",
+      ),
+      attribute.attribute("clip-path", "url(#lens)"),
+    ],
+    [
+      // a touch of shadow where the glass sits over the pea
+      svg.circle([
+        attribute.attribute("stroke", "none"),
+        attribute.attribute("fill", border),
+        attribute.attribute("opacity", "0.08"),
+        attribute.attribute("cx", shadow_cx),
+        attribute.attribute("cy", shadow_cy),
+        attribute.attribute("r", shadow_r),
+      ]),
+      // a diagonal reflection, like light catching the lens
+      svg.path([
+        attribute.attribute("fill", "none"),
+        attribute.attribute("stroke", "white"),
+        attribute.attribute("stroke-width", shine_width),
+        attribute.attribute("opacity", "0.45"),
+        attribute.attribute(
+          "d",
+          "M" <> x1 <> "," <> y1 <> " L" <> x2 <> "," <> y2,
+        ),
+      ]),
     ],
   )
 }
