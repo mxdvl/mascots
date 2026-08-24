@@ -13,6 +13,12 @@ pub fn main() {
   Nil
 }
 
+/// Renders the default pea as an SVG string, for offline preview/tooling use
+/// (see render_preview.gleam).
+pub fn preview() -> String {
+  element.to_string(pea(init(Nil)))
+}
+
 type Eyes {
   Dot
   Happy
@@ -28,7 +34,7 @@ type Model {
     frame: Int,
     // how far apart the lenses sit from the centre
     spread: Int,
-    // how much the curly tendril hat leans left/right, in degrees
+    // how wide the leaves splay apart, in degrees
     curl: Int,
     // which eye shape is drawn inside the lenses
     eyes: Eyes,
@@ -85,7 +91,7 @@ fn view(model: Model) -> Element(Message) {
     pea(model),
     control("Lens size", model.frame, 8, 26, UserMovedFrame),
     control("Eye spread", model.spread, 0, 14, UserMovedSpread),
-    control("Curl", model.curl, -60, 60, UserMovedCurl),
+    control("Leaves", model.curl, 10, 60, UserMovedCurl),
     control("Border", model.border_width, 2, 8, UserMovedBorderWidth),
     control("Mouth height", model.mouth_y, -8, 16, UserMovedMouthY),
     control("Mouth width", model.mouth_width, 1, 12, UserMovedMouthWidth),
@@ -110,7 +116,7 @@ fn pea(model: Model) -> Element(Message) {
   let eye_x = model.frame + model.spread
   // pupils sit inset from the lens centre, towards the bridge, rather than
   // dead in the middle of the lens
-  let pupil_x = eye_x - model.frame * 7 / 10
+  let pupil_x = eye_x - model.frame * 4 / 10
   // gap between the inner edges of the lenses, so the bridge always spans it
   // and never collapses into a blob once the outline gets thick
   let gap = eye_x - model.frame
@@ -132,8 +138,8 @@ fn pea(model: Model) -> Element(Message) {
         svg.radial_gradient(
           [
             attribute.id("skin"),
-            attribute.attribute("cx", "35%"),
-            attribute.attribute("cy", "30%"),
+            attribute.attribute("cx", "50%"),
+            attribute.attribute("cy", "25%"),
             attribute.attribute("r", "75%"),
           ],
           [
@@ -156,17 +162,27 @@ fn pea(model: Model) -> Element(Message) {
       svg.ellipse([
         attribute.attribute("stroke", "none"),
         attribute.attribute("fill", skin_dark),
-        attribute.attribute("opacity", "0.6"),
+        attribute.attribute("opacity", "0.25"),
         attribute.attribute("cx", "0"),
-        attribute.attribute("cy", "50"),
+        attribute.attribute("cy", "52"),
         attribute.attribute("rx", "32"),
         attribute.attribute("ry", "6"),
       ]),
-      // a curly tendril, like a little hat
+      // leaves, sprouting from the top like a little hat
       hat(model.curl),
       svg.circle([
         attribute.attribute("fill", "url(#skin)"),
         attribute.attribute("r", "48"),
+      ]),
+      // a soft glossy highlight, since the light comes from above
+      svg.ellipse([
+        attribute.attribute("stroke", "none"),
+        attribute.attribute("fill", "white"),
+        attribute.attribute("opacity", "0.3"),
+        attribute.attribute("cx", "0"),
+        attribute.attribute("cy", "-30"),
+        attribute.attribute("rx", "14"),
+        attribute.attribute("ry", "8"),
       ]),
       svg.g(
         [
@@ -216,32 +232,29 @@ fn bridge(half_gap: Int) -> Element(Message) {
   ])
 }
 
-fn hat(curl: Int) -> Element(Message) {
+fn hat(splay: Int) -> Element(Message) {
+  svg.g([], [
+    svg.path([
+      attribute.attribute("fill", "none"),
+      attribute.attribute("d", "M0,-48 L0,-58"),
+    ]),
+    leaf(-splay),
+    leaf(splay),
+  ])
+}
+
+fn leaf(angle: Int) -> Element(Message) {
   svg.g(
     [
       attribute.attribute(
         "transform",
-        "translate(0 -48) rotate(" <> int.to_string(curl) <> ")",
+        "translate(0 -56) rotate(" <> int.to_string(angle) <> ")",
       ),
     ],
     [
-      // a small leaf sprouting where the tendril meets the pea
-      svg.g([attribute.attribute("transform", "translate(-3 -4) rotate(-50)")], [
-        svg.path([
-          attribute.attribute("fill", leaf_fill),
-          attribute.attribute(
-            "d",
-            "M0,0 C -7,-6 -7,-16 0,-22 C 7,-16 7,-6 0,0 Z",
-          ),
-        ]),
-      ]),
-      // the curling tendril itself, tapering to a point
       svg.path([
-        attribute.attribute("fill", "none"),
-        attribute.attribute(
-          "d",
-          "M0,0 A 8,8 0 0 1 0,-16 A 6,6 0 0 0 0,-28 A 4,4 0 0 1 3,-35",
-        ),
+        attribute.attribute("fill", leaf_fill),
+        attribute.attribute("d", "M0,0 C -8,-6 -8,-18 0,-24 C 8,-18 8,-6 0,0 Z"),
       ]),
     ],
   )
@@ -348,7 +361,7 @@ fn eyes_picker(selected: Eyes) -> Element(Message) {
     eyes_button(selected, Round, "o.o"),
     eyes_button(selected, Wide, "O.O"),
     eyes_button(selected, Flat, "-.-"),
-    eyes_button(selected, Wink, "o\\./o"),
+    eyes_button(selected, Wink, "o.^"),
   ])
 }
 
