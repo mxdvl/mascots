@@ -48,7 +48,7 @@ type Model {
     curl: Int,
     // which eye shape is drawn inside the lenses
     eyes: Eyes,
-    // vertical position of the mouth
+    // offset of the mouth below the bottom of the lenses
     mouth_y: Int,
     // half-width of the mouth
     mouth_width: Int,
@@ -65,9 +65,9 @@ fn init(_) -> Model {
     spread: 6,
     curl: 15,
     eyes: Dot,
-    mouth_y: 6,
-    mouth_width: 5,
-    mood: 6,
+    mouth_y: 0,
+    mouth_width: 4,
+    mood: 4,
     border_width: 4,
   )
 }
@@ -103,9 +103,9 @@ fn view(model: Model) -> Element(Message) {
     control("Eye spread", model.spread, 0, 14, UserMovedSpread),
     control("Leaves", model.curl, 10, 60, UserMovedCurl),
     control("Border", model.border_width, 2, 8, UserMovedBorderWidth),
-    control("Mouth height", model.mouth_y, -8, 16, UserMovedMouthY),
-    control("Mouth width", model.mouth_width, 1, 12, UserMovedMouthWidth),
-    control("Mood", model.mood, -6, 10, UserMovedMood),
+    control("Mouth height", model.mouth_y, -4, 6, UserMovedMouthY),
+    control("Mouth width", model.mouth_width, 1, 8, UserMovedMouthWidth),
+    control("Mood", model.mood, -6, 8, UserMovedMood),
     eyes_picker(model.eyes),
   ])
 }
@@ -131,6 +131,9 @@ fn pea(model: Model) -> Element(Message) {
   // exactly that space (never wider, or it overshoots past the lens rims)
   let gap = eye_x - model.frame
   let half_gap = int.max(gap, 2)
+  // mouth sits a small offset below the bottom of the lenses, so it can
+  // never touch the glasses no matter how the lens size slider is set
+  let mouth_baseline = model.frame - 2 + model.mouth_y
 
   html.svg(
     [
@@ -214,7 +217,7 @@ fn pea(model: Model) -> Element(Message) {
           lens_glass(eye_x, model.frame),
           eye(model.eyes, -pupil_x, is_left: True),
           eye(model.eyes, pupil_x, is_left: False),
-          mouth(model.mouth_y, model.mouth_width, model.mood),
+          mouth(mouth_baseline, model.mouth_width, model.mood),
         ],
       ),
     ],
