@@ -164,7 +164,7 @@ fn pea(model: Model) -> Element(Message) {
           ],
         ),
       ]),
-      // soft shadow puddle underneath the pea
+      // shadow
       svg.ellipse([
         attribute.attribute("stroke", "none"),
         attribute.attribute("fill", skin_dark),
