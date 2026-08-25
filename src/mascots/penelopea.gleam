@@ -65,7 +65,36 @@ fn defaults() -> Model {
 /// Builds the initial model for this mascot, restoring settings from the
 /// given query string when present (see `to_query`).
 pub fn init(query: String) -> Model {
-  from_query(query)
+  let fallback = defaults()
+  case uri.parse_query(query) {
+    Error(_) -> fallback
+    Ok(pairs) -> {
+      let get_int = fn(key: String, min: Int, max: Int, default: Int) -> Int {
+        pairs
+        |> list.key_find(key)
+        |> result.try(int.parse)
+        |> result.map(int.clamp(_, min: min, max: max))
+        |> result.unwrap(default)
+      }
+
+      let eyes =
+        pairs
+        |> list.key_find("eyes")
+        |> result.map(eyes_from_string)
+        |> result.unwrap(fallback.eyes)
+
+      Model(
+        frame: get_int("frame", 8, 26, fallback.frame),
+        spread: get_int("spread", 0, 14, fallback.spread),
+        curl: get_int("curl", 10, 60, fallback.curl),
+        eyes: eyes,
+        mouth_y: get_int("mouth_y", -4, 6, fallback.mouth_y),
+        mouth_width: get_int("mouth_width", 1, 8, fallback.mouth_width),
+        mood: get_int("mood", -6, 8, fallback.mood),
+        border_width: get_int("border_width", 2, 8, fallback.border_width),
+      )
+    }
+  }
 }
 
 pub fn update(model: Model, message: Message) -> Model {
@@ -152,39 +181,6 @@ pub fn to_query(model: Model) -> String {
     #("border_width", int.to_string(model.border_width)),
   ]
   |> uri.query_to_string
-}
-
-fn from_query(query: String) -> Model {
-  let fallback = defaults()
-  case uri.parse_query(query) {
-    Error(_) -> fallback
-    Ok(pairs) -> {
-      let get_int = fn(key: String, min: Int, max: Int, default: Int) -> Int {
-        pairs
-        |> list.key_find(key)
-        |> result.try(int.parse)
-        |> result.map(int.clamp(_, min: min, max: max))
-        |> result.unwrap(default)
-      }
-
-      let eyes =
-        pairs
-        |> list.key_find("eyes")
-        |> result.map(eyes_from_string)
-        |> result.unwrap(fallback.eyes)
-
-      Model(
-        frame: get_int("frame", 8, 26, fallback.frame),
-        spread: get_int("spread", 0, 14, fallback.spread),
-        curl: get_int("curl", 10, 60, fallback.curl),
-        eyes: eyes,
-        mouth_y: get_int("mouth_y", -4, 6, fallback.mouth_y),
-        mouth_width: get_int("mouth_width", 1, 8, fallback.mouth_width),
-        mood: get_int("mood", -6, 8, fallback.mood),
-        border_width: get_int("border_width", 2, 8, fallback.border_width),
-      )
-    }
-  }
 }
 
 const border = "rgb(11, 71, 53)"
