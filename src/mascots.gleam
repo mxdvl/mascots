@@ -2,10 +2,10 @@ import lustre
 import lustre/element.{type Element}
 import mascots/penelopea
 
-@external(javascript, "./penelopea_ffi.mjs", "get_query")
+@external(javascript, "./mascots_ffi.mjs", "get_query")
 fn get_query() -> String
 
-@external(javascript, "./penelopea_ffi.mjs", "set_query")
+@external(javascript, "./mascots_ffi.mjs", "set_query")
 fn set_query(query: String) -> Nil
 
 pub fn main() {
