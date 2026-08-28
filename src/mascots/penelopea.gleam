@@ -147,22 +147,22 @@ pub fn view(model: Model) -> Element(Message) {
 
 fn eyes_to_string(eyes: Eyes) -> String {
   case eyes {
-    Dot -> "dot"
-    Happy -> "happy"
-    Round -> "round"
-    Wide -> "wide"
-    Flat -> "flat"
-    Wink -> "wink"
+    Dot -> "._."
+    Happy -> "^.^"
+    Round -> "o.o"
+    Wide -> "O.O"
+    Flat -> "-.-"
+    Wink -> "o.^"
   }
 }
 
 fn eyes_from_string(value: String) -> Eyes {
   case value {
-    "happy" -> Happy
-    "round" -> Round
-    "wide" -> Wide
-    "flat" -> Flat
-    "wink" -> Wink
+    "^.^" -> Happy
+    "o.o" -> Round
+    "O.O" -> Wide
+    "-.-" -> Flat
+    "o.^" -> Wink
     _ -> Dot
   }
 }
@@ -485,16 +485,16 @@ fn mouth(y: Int, half_width: Int, mood: Int) -> Element(Message) {
 
 fn eyes_picker(selected: Eyes) -> Element(Message) {
   html.div([attribute.attribute("role", "group"), attribute.class("eyes")], [
-    eyes_button(selected, Dot, "._."),
-    eyes_button(selected, Happy, "^.^"),
-    eyes_button(selected, Round, "o.o"),
-    eyes_button(selected, Wide, "O.O"),
-    eyes_button(selected, Flat, "-.-"),
-    eyes_button(selected, Wink, "o.^"),
+    eyes_button(selected, Dot),
+    eyes_button(selected, Happy),
+    eyes_button(selected, Round),
+    eyes_button(selected, Wide),
+    eyes_button(selected, Flat),
+    eyes_button(selected, Wink),
   ])
 }
 
-fn eyes_button(selected: Eyes, shape: Eyes, label: String) -> Element(Message) {
+fn eyes_button(selected: Eyes, shape: Eyes) -> Element(Message) {
   html.button(
     [
       event.on_click(UserSelectedEyes(shape)),
@@ -503,7 +503,7 @@ fn eyes_button(selected: Eyes, shape: Eyes, label: String) -> Element(Message) {
         False -> "false"
       }),
     ],
-    [html.text(label)],
+    [html.text(eyes_to_string(shape))],
   )
 }
 
