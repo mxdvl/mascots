@@ -99,14 +99,14 @@ pub fn init(query: String) -> Model {
 
 pub fn update(model: Model, message: Message) -> Model {
   case message {
-    UserMovedFrame(value) -> Model(..model, frame: value)
-    UserMovedSpread(value) -> Model(..model, spread: value)
-    UserMovedCurl(value) -> Model(..model, curl: value)
-    UserSelectedEyes(value) -> Model(..model, eyes: value)
-    UserMovedMouthY(value) -> Model(..model, mouth_y: value)
-    UserMovedMouthWidth(value) -> Model(..model, mouth_width: value)
-    UserMovedMood(value) -> Model(..model, mood: value)
-    UserMovedBorderWidth(value) -> Model(..model, border_width: value)
+    UserMovedFrame(frame) -> Model(..model, frame:)
+    UserMovedSpread(spread) -> Model(..model, spread:)
+    UserMovedCurl(curl) -> Model(..model, curl:)
+    UserSelectedEyes(eyes) -> Model(..model, eyes:)
+    UserMovedMouthY(mouth_y) -> Model(..model, mouth_y:)
+    UserMovedMouthWidth(mouth_width) -> Model(..model, mouth_width:)
+    UserMovedMood(mood) -> Model(..model, mood:)
+    UserMovedBorderWidth(border_width) -> Model(..model, border_width:)
   }
 }
 
