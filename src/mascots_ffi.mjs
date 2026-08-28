@@ -10,8 +10,8 @@ export function set_query(query) {
   window.history.replaceState(null, "", url);
 }
 
-// Gleam's stdlib doesn't expose trigonometry, so `lucy.gleam` reaches
-// straight for `Math` to convert between Cartesian and polar coordinates.
+// TODO: use community maths
+
 export function sin(theta) {
   return Math.sin(theta);
 }
