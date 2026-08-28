@@ -1,20 +1,21 @@
-# penelopea
+# mascots
 
-[![Package Version](https://img.shields.io/hexpm/v/penelopea)](https://hex.pm/packages/penelopea)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://penelopea.hexdocs.pm/)
+[![Package Version](https://img.shields.io/hexpm/v/mascots)](https://hex.pm/packages/mascots)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://mascots.hexdocs.pm/)
 
 ```sh
-gleam add penelopea@1
+gleam add mascots@1
 ```
+
 ```gleam
-import penelopea
+import mascots
 
 pub fn main() -> Nil {
   // TODO: An example of the project in use
 }
 ```
 
-Further documentation can be found at <https://penelopea.hexdocs.pm/>.
+Further documentation can be found at <https://mascots.hexdocs.pm/>.
 
 ## Development
 

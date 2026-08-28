@@ -35,7 +35,7 @@ jobs:
         run: |
           sed -i \
             -e 's#href="/styles.css"#href="./styles.css"#' \
-            -e 's#src="/penelopea.js"#src="./penelopea.js"#' \
+            -e 's#src="/mascots.js"#src="./mascots.js"#' \
             dist/index.html
 
       - name: Upload Pages artifact
