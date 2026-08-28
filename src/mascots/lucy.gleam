@@ -38,7 +38,7 @@ pub fn view(model: Model) -> Element(Message) {
     html.p([], [
       html.text("Lucy is the "),
       html.a([attribute.href("https://gleam.run")], [html.text("Gleam mascot")]),
-      html.text(" © 2026 Louis Pilfold"),
+      html.text(" © 2026 Louis Pilfold"),
     ]),
   ])
 }
