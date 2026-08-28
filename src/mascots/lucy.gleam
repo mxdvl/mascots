@@ -22,17 +22,30 @@ pub fn update(model: Model, message: Message) -> Model {
   }
 }
 
+const border = "#1e1e1e"
+
 pub fn view(model: Model) -> Element(Message) {
   element.fragment([
     html.svg(
       [
         attribute.attribute("viewBox", "-60 -60 120 120"),
-        attribute.attribute("stroke-width", int.to_string(2)),
+        attribute.attribute("stroke-width", int.to_string(3)),
         attribute.attribute("stroke-linecap", "round"),
+        attribute.attribute("stroke-linejoin", "round"),
         attribute.attribute("fill", model.colour),
-        attribute.attribute("stroke", "#123"),
+        attribute.attribute("stroke", border),
       ],
-      [svg.path([attribute.attribute("d", star_path(model.count))])],
+      [
+        svg.g(
+          [
+            attribute.attribute("transform", "rotate(-13)"),
+          ],
+          [
+            svg.path([attribute.attribute("d", star_path(model.count))]),
+            face(),
+          ],
+        ),
+      ],
     ),
     range("Count", model.count, 3, 27, UserChangedCount),
     html.p([], [
@@ -41,6 +54,52 @@ pub fn view(model: Model) -> Element(Message) {
       html.text(" © 2026 Louis Pilfold"),
     ]),
   ])
+}
+
+/// A simple, friendly face, sitting in the middle of the star regardless of
+/// how many branches it has, since the body's radius never changes.
+fn face() -> Element(Message) {
+  let x = 12
+  let y = 3
+  let radius = 3
+  let mouth = 3
+  let offset = 2
+  svg.g(
+    [attribute.attribute("stroke", "none"), attribute.attribute("fill", border)],
+    [
+      // eyes
+      svg.circle([
+        attribute.attribute("cx", int.to_string(-x)),
+        attribute.attribute("cy", int.to_string(-y)),
+        attribute.attribute("r", int.to_string(radius)),
+      ]),
+      svg.circle([
+        attribute.attribute("cx", int.to_string(x)),
+        attribute.attribute("cy", int.to_string(-y)),
+        attribute.attribute("r", int.to_string(radius)),
+      ]),
+      // mouth
+      svg.path([
+        attribute.attribute("fill", "none"),
+        attribute.attribute("stroke", border),
+        attribute.attribute(
+          "d",
+          [
+            "M" <> int.to_string(-mouth) <> "," <> int.to_string(offset),
+            "A"
+              <> int.to_string(mouth)
+              <> ","
+              <> int.to_string(mouth)
+              <> " 0 0 0 "
+              <> int.to_string(mouth)
+              <> ","
+              <> int.to_string(offset),
+          ]
+            |> string.join(" "),
+        ),
+      ]),
+    ],
+  )
 }
 
 fn range(
@@ -106,7 +165,21 @@ fn flip(point: CartesianPoint) -> CartesianPoint {
   CartesianPoint(..point, x: 0.0 -. point.x)
 }
 
+/// How rounded a star's tips are: 0 would be a sharp point, 0.5 would pull
+/// the curve all the way back to its neighbours.
+const tip_roundness = 0.42
+
+/// How rounded a star's inner corners (the valleys between branches) are.
+/// Kept gentler than the tips, so the branches stay readable as branches.
+const valley_roundness = 0.16
+
 /// Builds the outline of a `count`-pointed star as an SVG path `d` string.
+fn star_path(count: Int) -> String {
+  star_vertices(count) |> rounded_path
+}
+
+/// Places the vertices of a `count`-pointed star, each tagged with how
+/// rounded that particular corner should be.
 ///
 /// A single spike is drawn by hand as two Cartesian points: its tip, sitting
 /// straight up from the centre, and the corner where it meets its clockwise
@@ -119,9 +192,9 @@ fn flip(point: CartesianPoint) -> CartesianPoint {
 /// rotating by a full `step` always lands one spike's clockwise corner
 /// exactly on the next spike's anticlockwise corner - so the outline never
 /// has to jump, and only one of the two corners needs to be kept per spike.
-fn star_path(count: Int) -> String {
+fn star_vertices(count: Int) -> List(#(CartesianPoint, Float)) {
   let outer_radius = 50.0
-  let inner_radius = 20.0
+  let inner_radius = 24.0
   let step = 2.0 *. pi /. int.to_float(count)
   let half_angle = step /. 2.0
 
@@ -134,25 +207,83 @@ fn star_path(count: Int) -> String {
     |> flip
     |> to_polar
 
-  let points =
-    list.repeat(Nil, count)
-    |> list.index_map(fn(_, index) {
-      let angle = int.to_float(index) *. step
-      [rotate(corner, by: angle), rotate(tip, by: angle)]
-    })
-    |> list.flatten
-    |> list.map(to_cartesian)
+  list.repeat(Nil, count)
+  |> list.index_map(fn(_, index) {
+    let angle = int.to_float(index) *. step
+    [
+      #(rotate(corner, by: angle) |> to_cartesian, valley_roundness),
+      #(rotate(tip, by: angle) |> to_cartesian, tip_roundness),
+    ]
+  })
+  |> list.flatten
+}
 
-  case points {
-    [] -> ""
-    [first, ..rest] ->
-      [
-        "M" <> point_to_string(first),
-        ..list.map(rest, fn(point) { "L" <> point_to_string(point) })
-      ]
-      |> string.join(" ")
-      <> " Z"
-  }
+/// Softens every corner of a closed polygon into a rounded curve, rather
+/// than meeting it at a sharp point: for each vertex, pull back along both
+/// its edges by that vertex's own roundness fraction, then curve through
+/// the original vertex with a quadratic Bezier between the two pull-back
+/// points, leaving a short straight edge in between corners.
+fn rounded_path(vertices: List(#(CartesianPoint, Float))) -> String {
+  let count = list.length(vertices)
+  let points =
+    list.map(vertices, fn(vertex) {
+      let #(point, _roundness) = vertex
+      point
+    })
+  let previous_points =
+    list.append(list.drop(points, count - 1), list.take(points, count - 1))
+  let next_points = list.append(list.drop(points, 1), list.take(points, 1))
+
+  let corners =
+    list.map2(
+      vertices,
+      list.zip(previous_points, next_points),
+      fn(vertex, neighbours) {
+        let #(point, roundness) = vertex
+        let #(previous, next) = neighbours
+        #(
+          towards(point, previous, roundness),
+          point,
+          towards(point, next, roundness),
+        )
+      },
+    )
+
+  let enter_points =
+    list.map(corners, fn(corner) {
+      let #(enter, _point, _exit) = corner
+      enter
+    })
+  let next_enter_points =
+    list.append(list.drop(enter_points, 1), list.take(enter_points, 1))
+
+  let assert Ok(first_enter) = list.first(enter_points)
+
+  let curves =
+    list.map2(corners, next_enter_points, fn(corner, next_enter) {
+      let #(_enter, point, exit) = corner
+      "Q"
+      <> point_to_string(point)
+      <> " "
+      <> point_to_string(exit)
+      <> " L"
+      <> point_to_string(next_enter)
+    })
+    |> string.join(" ")
+
+  "M" <> point_to_string(first_enter) <> " " <> curves <> " Z"
+}
+
+/// A point a fraction of the way from `from` towards `to`.
+fn towards(
+  from: CartesianPoint,
+  to: CartesianPoint,
+  fraction: Float,
+) -> CartesianPoint {
+  CartesianPoint(
+    x: from.x +. { to.x -. from.x } *. fraction,
+    y: from.y +. { to.y -. from.y } *. fraction,
+  )
 }
 
 fn point_to_string(point: CartesianPoint) -> String {

@@ -1,9 +1,11 @@
 :root {
     --border: rgb(11, 71, 53);
+    --color-aged-plastic-yellow: #fffbe8;
 }
 
 body {
     font-family: system-ui, sans-serif;
+    background-color: var(--color-aged-plastic-yellow);
 }
 
 #app {

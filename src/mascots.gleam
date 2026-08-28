@@ -30,7 +30,7 @@ type Message {
 }
 
 fn init(_) -> Mascot {
-  Lucy(lucy.Model(7, "pink"))
+  Lucy(lucy.Model(7, "#ffaff3"))
 }
 
 fn update(mascot: Mascot, message: Message) -> Mascot {
