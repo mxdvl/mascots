@@ -28,6 +28,7 @@ pub fn view(model: Model) -> Element(Message) {
   element.fragment([
     html.svg(
       [
+        attribute.id("lucy"),
         attribute.attribute("viewBox", "-60 -60 120 120"),
         attribute.attribute("stroke-width", int.to_string(3)),
         attribute.attribute("stroke-linecap", "round"),

@@ -210,6 +210,7 @@ fn pea(model: Model) -> Element(Message) {
 
   html.svg(
     [
+      attribute.id("penelopea"),
       attribute.attribute("viewBox", "-64 -96 128 168"),
       attribute.attribute("stroke-width", int.to_string(model.border_width)),
       attribute.attribute("stroke-linecap", "round"),

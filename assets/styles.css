@@ -5,7 +5,14 @@
 
 body {
     font-family: system-ui, sans-serif;
-    background-color: var(--color-aged-plastic-yellow);
+
+    &:has(svg#lucy) {
+        background-color: var(--color-aged-plastic-yellow);
+    }
+
+    &:has(svg#penelopea) {
+        background-color: #cceeff;
+    }
 }
 
 #app {
