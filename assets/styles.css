@@ -1,9 +1,18 @@
 :root {
     --border: rgb(11, 71, 53);
+    --color-aged-plastic-yellow: #fffbe8;
 }
 
 body {
     font-family: system-ui, sans-serif;
+
+    &:has(svg#lucy) {
+        background-color: var(--color-aged-plastic-yellow);
+    }
+
+    &:has(svg#penelopea) {
+        background-color: #cceeff;
+    }
 }
 
 #app {
@@ -30,6 +39,27 @@ body {
 
         input {
             flex: 1;
+        }
+    }
+
+    .tabs {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 0.5rem;
+
+        button {
+            flex: 1;
+            padding: 0.5rem 0;
+            border: 1px solid #ccc;
+            border-radius: 0.4rem;
+            background: white;
+            cursor: pointer;
+            font-weight: 600;
+
+            &[aria-selected="true"] {
+                border-color: var(--border);
+                background: color-mix(in srgb, var(--border) 12%, white);
+            }
         }
     }
 

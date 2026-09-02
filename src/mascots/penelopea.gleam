@@ -49,6 +49,10 @@ pub type Message {
   UserMovedBorderWidth(Int)
 }
 
+/// The id used for this mascot's root SVG element, shared with anything
+/// that needs to refer to it - e.g. the tab that selects it.
+pub const id = "penelopea"
+
 fn defaults() -> Model {
   Model(
     frame: 18,
@@ -210,6 +214,7 @@ fn pea(model: Model) -> Element(Message) {
 
   html.svg(
     [
+      attribute.id(id),
       attribute.attribute("viewBox", "-64 -96 128 168"),
       attribute.attribute("stroke-width", int.to_string(model.border_width)),
       attribute.attribute("stroke-linecap", "round"),
