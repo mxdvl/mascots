@@ -48,7 +48,7 @@ pub fn view(model: Model) -> Element(Message) {
         ),
       ],
     ),
-    range("Count", model.count, 3, 27, UserChangedCount),
+    range("Count", model.count, 2, 27, UserChangedCount),
     html.p([], [
       html.text("Lucy is the "),
       html.a([attribute.href("https://gleam.run")], [html.text("Gleam mascot")]),
