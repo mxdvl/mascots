@@ -1,7 +1,9 @@
 import gleam/float
 import gleam/int
 import gleam/list
+import gleam/result
 import gleam/string
+import gleam/uri
 import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html
@@ -16,10 +18,49 @@ pub type Message {
   UserChangedCount(Int)
 }
 
+/// The id used for this mascot's root SVG element, shared with anything
+/// that needs to refer to it - e.g. the tab that selects it.
+pub const id = "lucy"
+
+fn defaults() -> Model {
+  Model(count: 7, colour: "ffaff3")
+}
+
+/// Builds the initial model, restoring settings from the given query string
+/// when present (see `to_query`).
+pub fn init(query: String) -> Model {
+  let fallback = defaults()
+  case uri.parse_query(query) {
+    Error(_) -> fallback
+    Ok(pairs) -> {
+      let count =
+        pairs
+        |> list.key_find("count")
+        |> result.try(int.parse)
+        |> result.map(int.clamp(_, min: 3, max: 27))
+        |> result.unwrap(fallback.count)
+
+      let colour =
+        pairs
+        |> list.key_find("colour")
+        |> result.unwrap(fallback.colour)
+
+      Model(count:, colour:)
+    }
+  }
+}
+
 pub fn update(model: Model, message: Message) -> Model {
   case message {
     UserChangedCount(count) -> Model(..model, count:)
   }
+}
+
+/// Serialises the model to a query string, so its settings can be shared via
+/// a link (see `init`).
+pub fn to_query(model: Model) -> String {
+  [#("count", int.to_string(model.count)), #("colour", model.colour)]
+  |> uri.query_to_string
 }
 
 const border = "#1e1e1e"
@@ -28,12 +69,12 @@ pub fn view(model: Model) -> Element(Message) {
   element.fragment([
     html.svg(
       [
-        attribute.id("lucy"),
+        attribute.id(id),
         attribute.attribute("viewBox", "-60 -60 120 120"),
         attribute.attribute("stroke-width", int.to_string(3)),
         attribute.attribute("stroke-linecap", "round"),
         attribute.attribute("stroke-linejoin", "round"),
-        attribute.attribute("fill", model.colour),
+        attribute.attribute("fill", "#" <> model.colour),
         attribute.attribute("stroke", border),
       ],
       [
