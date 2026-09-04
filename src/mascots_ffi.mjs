@@ -1,13 +1,32 @@
-/** Reads the current URL's query string (without the leading "?") */
+import { Ok, Error } from "./gleam.mjs";
+
+/**
+ * Reads the current URL's query string (without the leading "?")
+ * @returns {string}
+ */
 export function get_query() {
-  return window.location.search.replace(/^\?/, "");
+  try {
+    return window.location.search.replace(/^\?/, "");
+  } catch (error) {
+    console.error(error);
+    return "";
+  }
 }
 
-/** Replaces the URL's query string in place */
+/**
+ * Replaces the URL's query string in place
+ * @param {string} query
+ * @returns {void}
+ */
 export function set_query(query) {
-  const url = new URL(window.location.href);
-  url.search = query;
-  window.history.replaceState(null, "", url);
+  try {
+    const url = new URL(window.location.href);
+    url.search = query;
+    window.history.replaceState(null, "", url);
+    url.href;
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 // TODO: use community maths

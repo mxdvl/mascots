@@ -40,23 +40,24 @@ type Message {
 /// query parameter - one of the two mascots' own `id` constants - falling
 /// back to Lucy when it's missing or unrecognised.
 fn init(_) -> Mascot {
-  let query = get_query()
-  case selected_id(query) {
-    id if id == penelopea.id -> Penelopea(penelopea.init(query))
-    _ -> Lucy(lucy.init(query))
+  let pairs = current_pairs()
+  case list.key_find(pairs, "mascot") {
+    Ok(id) if id == penelopea.id -> Penelopea(penelopea.init(pairs))
+    _ -> Lucy(lucy.init(pairs))
   }
 }
 
-fn selected_id(query: String) -> String {
-  uri.parse_query(query)
-  |> result.try(list.key_find(_, "mascot"))
-  |> result.unwrap(lucy.id)
+/// The URL's current query, parsed into pairs
+fn current_pairs() -> List(#(String, String)) {
+  get_query()
+  |> uri.parse_query
+  |> result.unwrap([])
 }
 
 fn update(mascot: Mascot, message: Message) -> Mascot {
   let new_mascot = case mascot, message {
-    _, UserSelectedLucy -> Lucy(lucy.init(get_query()))
-    _, UserSelectedPenelopea -> Penelopea(penelopea.init(get_query()))
+    _, UserSelectedLucy -> Lucy(lucy.init(current_pairs()))
+    _, UserSelectedPenelopea -> Penelopea(penelopea.init(current_pairs()))
     Penelopea(model), PenelopeaMessage(sub_message) ->
       Penelopea(penelopea.update(model, sub_message))
     Lucy(model), LucyMessage(sub_message) ->
@@ -70,12 +71,12 @@ fn update(mascot: Mascot, message: Message) -> Mascot {
 /// Saves the current mascot to the URL, tagged with its `id`, so reloading
 /// or sharing the link brings back the same mascot in the same state.
 fn persist(mascot: Mascot) -> Nil {
-  case mascot {
-    Lucy(model) ->
-      set_query("mascot=" <> lucy.id <> "&" <> lucy.to_query(model))
-    Penelopea(model) ->
-      set_query("mascot=" <> penelopea.id <> "&" <> penelopea.to_query(model))
+  let pairs = case mascot {
+    Lucy(model) -> [#("mascot", lucy.id), ..lucy.to_pairs(model)]
+    Penelopea(model) -> [#("mascot", penelopea.id), ..penelopea.to_pairs(model)]
   }
+  set_query(uri.query_to_string(pairs))
+  Nil
 }
 
 fn view(mascot: Mascot) -> Element(Message) {

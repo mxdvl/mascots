@@ -3,7 +3,6 @@ import gleam/int
 import gleam/list
 import gleam/result
 import gleam/string
-import gleam/uri
 import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html
@@ -26,28 +25,24 @@ fn defaults() -> Model {
   Model(count: 7, colour: "ffaff3")
 }
 
-/// Builds the initial model, restoring settings from the given query string
-/// when present (see `to_query`).
-pub fn init(query: String) -> Model {
+/// Builds the initial model, restoring settings from the given query pairs
+/// when present (see `to_pairs`).
+pub fn init(pairs: List(#(String, String))) -> Model {
   let fallback = defaults()
-  case uri.parse_query(query) {
-    Error(_) -> fallback
-    Ok(pairs) -> {
-      let count =
-        pairs
-        |> list.key_find("count")
-        |> result.try(int.parse)
-        |> result.map(int.clamp(_, min: 3, max: 27))
-        |> result.unwrap(fallback.count)
 
-      let colour =
-        pairs
-        |> list.key_find("colour")
-        |> result.unwrap(fallback.colour)
+  let count =
+    pairs
+    |> list.key_find("count")
+    |> result.try(int.parse)
+    |> result.map(int.clamp(_, min: 3, max: 27))
+    |> result.unwrap(fallback.count)
 
-      Model(count:, colour:)
-    }
-  }
+  let colour =
+    pairs
+    |> list.key_find("colour")
+    |> result.unwrap(fallback.colour)
+
+  Model(count:, colour:)
 }
 
 pub fn update(model: Model, message: Message) -> Model {
@@ -56,11 +51,10 @@ pub fn update(model: Model, message: Message) -> Model {
   }
 }
 
-/// Serialises the model to a query string, so its settings can be shared via
-/// a link (see `init`).
-pub fn to_query(model: Model) -> String {
+/// Serialises the model to query pairs, so its settings can be shared via a
+/// link (see `init`).
+pub fn to_pairs(model: Model) -> List(#(String, String)) {
   [#("count", int.to_string(model.count)), #("colour", model.colour)]
-  |> uri.query_to_string
 }
 
 const border = "#1e1e1e"

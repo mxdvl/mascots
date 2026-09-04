@@ -1,7 +1,6 @@
 import gleam/int
 import gleam/list
 import gleam/result
-import gleam/uri
 import lustre/attribute
 import lustre/element.{type Element}
 import lustre/element/html
@@ -67,38 +66,33 @@ fn defaults() -> Model {
 }
 
 /// Builds the initial model for this mascot, restoring settings from the
-/// given query string when present (see `to_query`).
-pub fn init(query: String) -> Model {
+/// given query pairs when present (see `to_pairs`).
+pub fn init(pairs: List(#(String, String))) -> Model {
   let fallback = defaults()
-  case uri.parse_query(query) {
-    Error(_) -> fallback
-    Ok(pairs) -> {
-      let get_int = fn(key: String, min: Int, max: Int, default: Int) -> Int {
-        pairs
-        |> list.key_find(key)
-        |> result.try(int.parse)
-        |> result.map(int.clamp(_, min: min, max: max))
-        |> result.unwrap(default)
-      }
-
-      let eyes =
-        pairs
-        |> list.key_find("eyes")
-        |> result.map(eyes_from_string)
-        |> result.unwrap(fallback.eyes)
-
-      Model(
-        frame: get_int("frame", 8, 26, fallback.frame),
-        spread: get_int("spread", 0, 14, fallback.spread),
-        curl: get_int("curl", 10, 60, fallback.curl),
-        eyes: eyes,
-        mouth_y: get_int("mouth_y", -4, 6, fallback.mouth_y),
-        mouth_width: get_int("mouth_width", 1, 8, fallback.mouth_width),
-        mood: get_int("mood", -6, 8, fallback.mood),
-        border_width: get_int("border_width", 2, 8, fallback.border_width),
-      )
-    }
+  let get_int = fn(key: String, min: Int, max: Int, default: Int) -> Int {
+    pairs
+    |> list.key_find(key)
+    |> result.try(int.parse)
+    |> result.map(int.clamp(_, min: min, max: max))
+    |> result.unwrap(default)
   }
+
+  let eyes =
+    pairs
+    |> list.key_find("eyes")
+    |> result.map(eyes_from_string)
+    |> result.unwrap(fallback.eyes)
+
+  Model(
+    frame: get_int("frame", 8, 26, fallback.frame),
+    spread: get_int("spread", 0, 14, fallback.spread),
+    curl: get_int("curl", 10, 60, fallback.curl),
+    eyes: eyes,
+    mouth_y: get_int("mouth_y", -4, 6, fallback.mouth_y),
+    mouth_width: get_int("mouth_width", 1, 8, fallback.mouth_width),
+    mood: get_int("mood", -6, 8, fallback.mood),
+    border_width: get_int("border_width", 2, 8, fallback.border_width),
+  )
 }
 
 pub fn update(model: Model, message: Message) -> Model {
@@ -171,9 +165,9 @@ fn eyes_from_string(value: String) -> Eyes {
   }
 }
 
-/// Serialises the model to a query string, so its settings can be shared via
-/// a link (see `from_query`).
-pub fn to_query(model: Model) -> String {
+/// Serialises the model to query pairs, so its settings can be shared via a
+/// link (see `init`).
+pub fn to_pairs(model: Model) -> List(#(String, String)) {
   [
     #("frame", int.to_string(model.frame)),
     #("spread", int.to_string(model.spread)),
@@ -184,7 +178,6 @@ pub fn to_query(model: Model) -> String {
     #("mood", int.to_string(model.mood)),
     #("border_width", int.to_string(model.border_width)),
   ]
-  |> uri.query_to_string
 }
 
 const border = "rgb(11, 71, 53)"
