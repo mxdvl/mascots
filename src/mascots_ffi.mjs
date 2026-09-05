@@ -1,5 +1,3 @@
-import { Ok, Error } from "./gleam.mjs";
-
 /**
  * Reads the current URL's query string (without the leading "?")
  * @returns {string}
@@ -23,10 +21,19 @@ export function set_query(query) {
     const url = new URL(window.location.href);
     url.search = query;
     window.history.replaceState(null, "", url);
-    url.href;
   } catch (error) {
     console.error(error);
   }
+}
+
+/**
+ * Calls `callback` after `delay` milliseconds.
+ * @param {number} delay
+ * @param {() => void} callback
+ * @returns {void}
+ */
+export function set_timeout(delay, callback) {
+  setTimeout(callback, delay);
 }
 
 // TODO: use community maths
