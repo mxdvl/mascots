@@ -11,13 +11,19 @@ import mascots/lucy
 import mascots/penelopea
 
 @external(javascript, "./mascots_ffi.mjs", "get_query")
-fn get_query() -> String
+fn get_query() -> String {
+  ""
+}
 
 @external(javascript, "./mascots_ffi.mjs", "set_query")
-fn set_query(query: String) -> Nil
+fn set_query(_query: String) -> Nil {
+  Nil
+}
 
 @external(javascript, "./mascots_ffi.mjs", "set_timeout")
-fn set_timeout(delay: Int, callback: fn() -> Nil) -> Nil
+fn set_timeout(_delay: Int, _callback: fn() -> Nil) -> Nil {
+  Nil
+}
 
 pub fn main() {
   let app = lustre.application(init, update, view)
