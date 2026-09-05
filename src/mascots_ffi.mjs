@@ -1,5 +1,3 @@
-import { Ok, Error } from "./gleam.mjs";
-
 /**
  * Reads the current URL's query string (without the leading "?")
  * @returns {string}
@@ -13,14 +11,12 @@ export function get_query() {
   }
 }
 
-// How often the URL is actually allowed to be replaced, so dragging a
-// slider doesn't hammer `history.replaceState` on every single tick.
-const THROTTLE_MS = 240;
-
-let last_run = 0;
-let scheduled = null;
-
-function replace_query(query) {
+/**
+ * Replaces the URL's query string in place
+ * @param {string} query
+ * @returns {void}
+ */
+export function set_query(query) {
   try {
     const url = new URL(window.location.href);
     url.search = query;
@@ -28,27 +24,18 @@ function replace_query(query) {
   } catch (error) {
     console.error(error);
   }
-  last_run = Date.now();
-  scheduled = null;
 }
 
 /**
- * Replaces the URL's query string in place, throttled so that frequent
- * calls (e.g. from dragging a slider) only actually touch the URL at most
- * once per `THROTTLE_MS`. The most recent query always wins, and is
- * guaranteed to be applied eventually via the trailing call.
- * @param {string} query
+ * Calls `callback` after `delay` milliseconds. Used to schedule Lustre
+ * effects (e.g. debounced persistence) without any timing logic living in
+ * JS - the debounce itself is implemented in Gleam.
+ * @param {number} delay
+ * @param {() => void} callback
  * @returns {void}
  */
-export function set_query(query) {
-  if (scheduled != null) clearTimeout(scheduled);
-
-  const elapsed = Date.now() - last_run;
-  if (elapsed >= THROTTLE_MS) {
-    replace_query(query);
-  } else {
-    scheduled = setTimeout(() => replace_query(query), THROTTLE_MS - elapsed);
-  }
+export function set_timeout(delay, callback) {
+  setTimeout(callback, delay);
 }
 
 // TODO: use community maths
