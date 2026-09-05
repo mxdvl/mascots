@@ -137,7 +137,7 @@ fn tab_button(selected: Mascot, message: Message) -> Element(Message) {
   let #(label, controls) = case message {
     UserSelectedLucy -> #("Lucy", lucy.id)
     UserSelectedPenelopea -> #("Penelopea", penelopea.id)
-    PenelopeaMessage(_) | LucyMessage(_) | PersistDue(_) -> #("…", "")
+    _ -> #("…", "")
   }
   html.button(
     [
