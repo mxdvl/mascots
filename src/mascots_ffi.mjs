@@ -27,9 +27,7 @@ export function set_query(query) {
 }
 
 /**
- * Calls `callback` after `delay` milliseconds. Used to schedule Lustre
- * effects (e.g. debounced persistence) without any timing logic living in
- * JS - the debounce itself is implemented in Gleam.
+ * Calls `callback` after `delay` milliseconds.
  * @param {number} delay
  * @param {() => void} callback
  * @returns {void}
