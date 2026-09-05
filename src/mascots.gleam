@@ -7,6 +7,7 @@ import lustre/effect.{type Effect}
 import lustre/element.{type Element}
 import lustre/element/html
 import lustre/event
+import mascots/cool_s
 import mascots/lucy
 import mascots/penelopea
 
@@ -37,6 +38,7 @@ pub fn main() {
 pub type Mascot {
   Penelopea(penelopea.Model)
   Lucy(lucy.Model)
+  CoolS(cool_s.Model)
 }
 
 pub type Model {
@@ -46,8 +48,10 @@ pub type Model {
 type Message {
   UserSelectedLucy
   UserSelectedPenelopea
+  UserSelectedCoolS
   PenelopeaMessage(penelopea.Message)
   LucyMessage(lucy.Message)
+  CoolSMessage(cool_s.Message)
   PersistDue(generation: Int)
 }
 
@@ -58,6 +62,7 @@ fn init(_) -> #(Model, Effect(Message)) {
   let pairs = current_pairs()
   let mascot = case list.key_find(pairs, "mascot") {
     Ok(id) if id == penelopea.id -> Penelopea(penelopea.init(pairs))
+    Ok(id) if id == cool_s.id -> CoolS(cool_s.init(pairs))
     _ -> Lucy(lucy.init(pairs))
   }
   #(Model(mascot:, generation: 0), effect.none())
@@ -86,10 +91,13 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       let mascot = case model.mascot, message {
         _, UserSelectedLucy -> Lucy(lucy.init(current_pairs()))
         _, UserSelectedPenelopea -> Penelopea(penelopea.init(current_pairs()))
+        _, UserSelectedCoolS -> CoolS(cool_s.init(current_pairs()))
         Penelopea(model), PenelopeaMessage(sub_message) ->
           Penelopea(penelopea.update(model, sub_message))
         Lucy(model), LucyMessage(sub_message) ->
           Lucy(lucy.update(model, sub_message))
+        CoolS(model), CoolSMessage(sub_message) ->
+          CoolS(cool_s.update(model, sub_message))
         mascot, _ -> mascot
       }
       let generation = model.generation + 1
@@ -112,6 +120,7 @@ fn persist(mascot: Mascot) -> Nil {
   let pairs = case mascot {
     Lucy(model) -> [#("mascot", lucy.id), ..lucy.to_pairs(model)]
     Penelopea(model) -> [#("mascot", penelopea.id), ..penelopea.to_pairs(model)]
+    CoolS(model) -> [#("mascot", cool_s.id), ..cool_s.to_pairs(model)]
   }
   set_query(uri.query_to_string(pairs))
 }
@@ -122,6 +131,7 @@ fn view(model: Model) -> Element(Message) {
     case model.mascot {
       Penelopea(model) -> penelopea.view(model) |> element.map(PenelopeaMessage)
       Lucy(model) -> lucy.view(model) |> element.map(LucyMessage)
+      CoolS(model) -> cool_s.view(model) |> element.map(CoolSMessage)
     },
   ])
 }
@@ -130,6 +140,7 @@ fn tabs(selected: Mascot) -> Element(Message) {
   html.div([attribute.attribute("role", "tablist"), attribute.class("tabs")], [
     tab_button(selected, UserSelectedLucy),
     tab_button(selected, UserSelectedPenelopea),
+    tab_button(selected, UserSelectedCoolS),
   ])
 }
 
@@ -137,6 +148,7 @@ fn tab_button(selected: Mascot, message: Message) -> Element(Message) {
   let #(label, controls) = case message {
     UserSelectedLucy -> #("Lucy", lucy.id)
     UserSelectedPenelopea -> #("Penelopea", penelopea.id)
+    UserSelectedCoolS -> #("Cool S", cool_s.id)
     _ -> #("…", "")
   }
   html.button(
@@ -146,6 +158,7 @@ fn tab_button(selected: Mascot, message: Message) -> Element(Message) {
       attribute.attribute("aria-selected", case selected, message {
         Lucy(_), UserSelectedLucy -> "true"
         Penelopea(_), UserSelectedPenelopea -> "true"
+        CoolS(_), UserSelectedCoolS -> "true"
         _, _ -> "false"
       }),
       event.on_click(message),
