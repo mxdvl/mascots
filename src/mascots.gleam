@@ -39,8 +39,6 @@ pub type Mascot {
   Lucy(lucy.Model)
 }
 
-/// The whole app's model: which mascot is on show, plus a `generation`
-/// counter used to debounce persisting to the URL (see `schedule_persist`).
 pub type Model {
   Model(mascot: Mascot, generation: Int)
 }
