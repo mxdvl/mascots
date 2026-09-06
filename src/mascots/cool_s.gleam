@@ -91,11 +91,48 @@ pub fn view(model: Model) -> Element(Message) {
 
 const border = "#1e1e1e"
 
-const fill = "#ff5252"
+/// The ribbon of colours banded across the width of the S, each one drawn
+/// a little narrower than the last so every colour nests inside the one
+/// before it, right down to a thin rainbow core.
+const rainbow = [
+  "#e63946", "#f77f00", "#fcbf49", "#52b788", "#4895ef", "#7b2cbf",
+]
+
+/// How much narrower each successive rainbow line is than the last.
+const width_step = 1
 
 /// Renders the whole Cool S mascot as an SVG, purely as a function of the
 /// model.
 fn cool_s(model: Model) -> Element(Message) {
+  let d = outline(model)
+  let border_width = 8
+  let ribbon =
+    rainbow
+    |> list.index_map(fn(colour, index) {
+      let width = border_width - { index + 1 } * width_step
+      svg.path([
+        attribute.attribute("stroke", colour),
+        attribute.attribute("stroke-width", int.to_string(width)),
+        attribute.attribute("d", d),
+      ])
+    })
+
+  html.svg(
+    [
+      attribute.id(id),
+      attribute.attribute("viewBox", "-64 -80 128 160"),
+      attribute.attribute("stroke-width", int.to_string(border_width)),
+      attribute.attribute("stroke-linecap", "round"),
+      attribute.attribute("stroke-linejoin", "round"),
+      attribute.attribute("stroke", border),
+      attribute.attribute("fill", "none"),
+    ],
+    [svg.path([attribute.attribute("d", d)]), ..ribbon],
+  )
+}
+
+/// Builds the full outline as a single SVG path `d` string.
+fn outline(model: Model) -> String {
   let left = -model.width
   let right = model.width
   // the four body rows, evenly spaced above and below the centre line
@@ -109,42 +146,21 @@ fn cool_s(model: Model) -> Element(Message) {
   let row_tip_bottom = row_bottom + model.pointiness
   let half = model.width / 2
 
-  let d =
-    [
-      line(left, row_top, left, row_upper),
-      line(0, row_top, 0, row_upper),
-      line(right, row_top, right, row_upper),
-      line(left, row_lower, left, row_bottom),
-      line(0, row_lower, 0, row_bottom),
-      line(right, row_lower, right, row_bottom),
-      line(left, row_upper, 0, row_lower),
-      line(0, row_upper, right, row_lower),
-      corner(left, row_top, 0, row_tip_top, right, row_top),
-      corner(left, row_bottom, 0, row_tip_bottom, right, row_bottom),
-      line(left, row_lower, -half, 0),
-      line(right, row_upper, half, 0),
-    ]
-    |> string.join(" ")
-
-  html.svg(
-    [
-      attribute.id(id),
-      attribute.attribute("viewBox", "-64 -80 128 160"),
-      attribute.attribute("stroke-width", "8"),
-      attribute.attribute("stroke-linecap", "round"),
-      attribute.attribute("stroke-linejoin", "round"),
-      attribute.attribute("stroke", border),
-      attribute.attribute("fill", "none"),
-    ],
-    [
-      svg.path([
-        attribute.attribute("stroke", fill),
-        attribute.attribute("stroke-width", int.to_string(4)),
-        attribute.attribute("d", d),
-      ]),
-      svg.path([attribute.attribute("d", d)]),
-    ],
-  )
+  [
+    line(left, row_top, left, row_upper),
+    line(0, row_top, 0, row_upper),
+    line(right, row_top, right, row_upper),
+    line(left, row_lower, left, row_bottom),
+    line(0, row_lower, 0, row_bottom),
+    line(right, row_lower, right, row_bottom),
+    line(left, row_upper, 0, row_lower),
+    line(0, row_upper, right, row_lower),
+    corner(left, row_top, 0, row_tip_top, right, row_top),
+    corner(left, row_bottom, 0, row_tip_bottom, right, row_bottom),
+    line(left, row_lower, -half, 0),
+    line(right, row_upper, half, 0),
+  ]
+  |> string.join(" ")
 }
 
 fn point(x: Int, y: Int) -> String {
