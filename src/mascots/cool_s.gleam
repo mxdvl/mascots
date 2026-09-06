@@ -83,9 +83,9 @@ pub fn preview() -> String {
 pub fn view(model: Model) -> Element(Message) {
   element.fragment([
     cool_s(model),
-    control("Width", model.width, 14, 46, UserMovedWidth),
-    control("Height", model.height, 8, 28, UserMovedHeight),
-    control("Pointiness", model.pointiness, 0, 40, UserMovedPointiness),
+    control("Width", model.width, 14, 46, 2, UserMovedWidth),
+    control("Height", model.height, 8, 28, 1, UserMovedHeight),
+    control("Pointiness", model.pointiness, 0, 40, 1, UserMovedPointiness),
   ])
 }
 
@@ -180,6 +180,7 @@ fn control(
   value: Int,
   min: Int,
   max: Int,
+  step: Int,
   update: fn(Int) -> Message,
 ) -> Element(Message) {
   let initial = value
@@ -187,6 +188,7 @@ fn control(
     html.span([], [html.text(label)]),
     html.input([
       attribute.type_("range"),
+      attribute.step(int.to_string(step)),
       attribute.min(int.to_string(min)),
       attribute.max(int.to_string(max)),
       value |> int.to_string |> attribute.value,
