@@ -13,6 +13,10 @@ body {
     &:has(svg#penelopea) {
         background-color: #cceeff;
     }
+
+    &:has(svg#cool_s) {
+        background-color: #efece6;
+    }
 }
 
 #app {
