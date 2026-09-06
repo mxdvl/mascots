@@ -10,9 +10,9 @@ import lustre/element/svg
 import lustre/event
 
 /// The classic "Cool S" doodle, drawn as a single continuous centreline
-/// (see `at`/`waypoints`) rather than as a filled outline - a top tip, an
-/// outer shoulder, a hooked waist, and the shape's centre, mirrored through
-/// that centre for the interlocking, infinity-symbol look.
+/// (see `at`/`waypoints`) rather than as a filled outline - a simple zigzag
+/// from the top tip to the bottom tip, mirrored through the shape's centre
+/// for that interlocking look.
 pub type Model {
   Model(
     // half the distance between the left/right columns and the centre one
@@ -28,6 +28,40 @@ pub type Message {
   UserMovedWidth(Int)
   UserMovedHeight(Int)
   UserMovedPointiness(Int)
+}
+
+/// A point in the plane, and some small helpers for working with them, so
+/// the rest of the module doesn't have to juggle bare `#(Float, Float)`
+/// tuples everywhere.
+pub type Point {
+  Point(x: Float, y: Float)
+}
+
+const origin = Point(0.0, 0.0)
+
+fn subtract(a: Point, b: Point) -> Point {
+  Point(a.x -. b.x, a.y -. b.y)
+}
+
+/// The straight-line distance from the origin to `a` - i.e. its length as a
+/// vector.
+fn length(a: Point) -> Float {
+  let assert Ok(length) = float.square_root(a.x *. a.x +. a.y *. a.y)
+  length
+}
+
+/// A point a `fraction` of the way from `from` towards `to`.
+fn along(from: Point, to: Point, fraction: Float) -> Point {
+  Point(
+    from.x +. { to.x -. from.x } *. fraction,
+    from.y +. { to.y -. from.y } *. fraction,
+  )
+}
+
+/// Rotates a point 180° around the origin - i.e. simply negates it. Used to
+/// mirror one half of the centreline into the other.
+fn rotate(a: Point) -> Point {
+  Point(0.0 -. a.x, 0.0 -. a.y)
 }
 
 /// The id used for this mascot's root SVG element, shared with anything
@@ -120,7 +154,7 @@ fn cool_s(model: Model) -> Element(Message) {
 /// 180°) to produce the other half. Because both halves are true rotations
 /// of one another, the line's exact midpoint (by arc length) always lands
 /// precisely on the centre of the shape, at `(0, 0)`.
-fn waypoints(model: Model) -> List(#(Float, Float)) {
+fn waypoints(model: Model) -> List(Point) {
   let w = int.to_float(model.width)
   let h = int.to_float(model.height)
   let p = int.to_float(model.pointiness)
@@ -132,20 +166,14 @@ fn waypoints(model: Model) -> List(#(Float, Float)) {
 
   let first_half = [
     // middle top
-    #(0.0, 0.0 -. h -. p),
+    Point(0.0, 0.0 -. h -. p),
     // top-left diagonal, down to the left shoulder
-    #(0.0 -. w, 0.0 -. shoulder),
+    Point(0.0 -. w, 0.0 -. shoulder),
     // straight down the left side
-    #(0.0 -. w, 0.0 -. inner),
+    Point(0.0 -. w, 0.0 -. inner),
   ]
 
-  let second_half =
-    first_half
-    |> list.reverse
-    |> list.map(fn(point) {
-      let #(x, y) = point
-      #(0.0 -. x, 0.0 -. y)
-    })
+  let second_half = first_half |> list.reverse |> list.map(rotate)
 
   list.append(first_half, second_half)
 }
@@ -154,7 +182,7 @@ fn waypoints(model: Model) -> List(#(Float, Float)) {
 /// fraction of the total line length: `0.0` is the top tip, `1.0` is the
 /// bottom tip, and (thanks to the symmetry in `waypoints`) `0.5` always
 /// lands exactly in the middle of the shape, at `(0, 0)`.
-pub fn at(model: Model, t: Float) -> #(Float, Float) {
+pub fn at(model: Model, t: Float) -> Point {
   let points = waypoints(model)
   let segments = list.zip(points, list.drop(points, 1))
   let lengths = list.map(segments, segment_length)
@@ -162,33 +190,28 @@ pub fn at(model: Model, t: Float) -> #(Float, Float) {
   walk(segments, lengths, target)
 }
 
-fn segment_length(segment: #(#(Float, Float), #(Float, Float))) -> Float {
-  let #(#(x1, y1), #(x2, y2)) = segment
-  let assert Ok(length) =
-    float.square_root(
-      { x2 -. x1 } *. { x2 -. x1 } +. { y2 -. y1 } *. { y2 -. y1 },
-    )
-  length
+fn segment_length(segment: #(Point, Point)) -> Float {
+  length(subtract(segment.1, segment.0))
 }
 
 fn walk(
-  segments: List(#(#(Float, Float), #(Float, Float))),
+  segments: List(#(Point, Point)),
   lengths: List(Float),
   target: Float,
-) -> #(Float, Float) {
+) -> Point {
   case segments, lengths {
-    [#(#(x1, y1), #(x2, y2)), ..rest_segments], [length, ..rest_lengths] ->
+    [#(from, to), ..rest_segments], [length, ..rest_lengths] ->
       case target <=. length || rest_segments == [] {
         True -> {
           let fraction = case length >. 0.0 {
             True -> float.clamp(target /. length, min: 0.0, max: 1.0)
             False -> 0.0
           }
-          #(x1 +. { x2 -. x1 } *. fraction, y1 +. { y2 -. y1 } *. fraction)
+          along(from, to, fraction)
         }
         False -> walk(rest_segments, rest_lengths, target -. length)
       }
-    _, _ -> #(0.0, 0.0)
+    _, _ -> origin
   }
 }
 
@@ -204,9 +227,8 @@ fn path(model: Model) -> String {
   }
 }
 
-fn format_point(point: #(Float, Float)) -> String {
-  let #(x, y) = point
-  round(x) <> "," <> round(y)
+fn format_point(a_point: Point) -> String {
+  round(a_point.x) <> "," <> round(a_point.y)
 }
 
 fn round(value: Float) -> String {
