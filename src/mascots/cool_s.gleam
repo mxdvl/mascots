@@ -1,3 +1,4 @@
+import gleam/float
 import gleam/int
 import gleam/list
 import gleam/result
@@ -8,10 +9,10 @@ import lustre/element/html
 import lustre/element/svg
 import lustre/event
 
-/// The classic "Cool S" doodle, built from the 14 line segments described
-/// on its Wikipedia page: three evenly-spaced verticals stacked above
-/// another three, two diagonals threading them together, a pointed "V" top
-/// and bottom, and two short connectors linking the diagonals to the V's.
+/// The classic "Cool S" doodle, drawn as a single continuous centreline
+/// (see `at`/`waypoints`) rather than as a filled outline - a top tip, an
+/// outer shoulder, a hooked waist, and the shape's centre, mirrored through
+/// that centre for the interlocking, infinity-symbol look.
 pub type Model {
   Model(
     // half the distance between the left/right columns and the centre one
@@ -91,88 +92,125 @@ pub fn view(model: Model) -> Element(Message) {
 
 const border = "#1e1e1e"
 
-/// The ribbon of colours banded across the width of the S, each one drawn
-/// a little narrower than the last so every colour nests inside the one
-/// before it, right down to a thin rainbow core.
-const rainbow = [
-  "#e63946", "#f77f00", "#fcbf49", "#52b788", "#4895ef", "#7b2cbf",
-]
-
-/// How much narrower each successive rainbow line is than the last.
-const width_step = 1
-
 /// Renders the whole Cool S mascot as an SVG, purely as a function of the
-/// model.
+/// model. For now this just draws the single continuous centreline (see
+/// `at`) - no outline, no rainbow yet.
 fn cool_s(model: Model) -> Element(Message) {
-  let d = outline(model)
-  let border_width = 8
-  let ribbon =
-    rainbow
-    |> list.index_map(fn(colour, index) {
-      let width = border_width - { index + 1 } * width_step
-      svg.path([
-        attribute.attribute("stroke", colour),
-        attribute.attribute("stroke-width", int.to_string(width)),
-        attribute.attribute("d", d),
-      ])
-    })
-
   html.svg(
     [
       attribute.id(id),
       attribute.attribute("viewBox", "-64 -80 128 160"),
-      attribute.attribute("stroke-width", int.to_string(border_width)),
+      attribute.attribute("stroke-width", "4"),
       attribute.attribute("stroke-linecap", "round"),
       attribute.attribute("stroke-linejoin", "round"),
       attribute.attribute("stroke", border),
       attribute.attribute("fill", "none"),
     ],
-    [svg.path([attribute.attribute("d", d)]), ..ribbon],
+    [svg.path([attribute.attribute("d", path(model))])],
   )
 }
 
-/// Builds the full outline as a single SVG path `d` string.
-fn outline(model: Model) -> String {
-  let left = -model.width
-  let right = model.width
-  // the four body rows, evenly spaced above and below the centre line
-  let row_top = -{ model.height * 3 / 2 }
-  let row_upper = -{ model.height / 2 }
-  let row_lower = model.height / 2
-  let row_bottom = model.height * 3 / 2
-  // the two tips, pushed out past the body rows by however pointy the
-  // model is - independent of the body's own row spacing
-  let row_tip_top = row_top - model.pointiness
-  let row_tip_bottom = row_bottom + model.pointiness
-  let half = model.width / 2
+/// The waypoints of the Cool S's single continuous centreline: a plain
+/// zigzag from the top tip to the bottom tip - top-left diagonal, straight
+/// down the left side, a diagonal across to the right, straight down the
+/// right side, then a bottom-right diagonal in to the bottom tip.
+///
+/// Built from just the first half (top tip down to the left side's lower
+/// point), which is then mirrored through the centre (rotating each point
+/// 180°) to produce the other half. Because both halves are true rotations
+/// of one another, the line's exact midpoint (by arc length) always lands
+/// precisely on the centre of the shape, at `(0, 0)`.
+fn waypoints(model: Model) -> List(#(Float, Float)) {
+  let w = int.to_float(model.width)
+  let h = int.to_float(model.height)
+  let p = int.to_float(model.pointiness)
 
-  [
-    line(left, row_top, left, row_upper),
-    line(0, row_top, 0, row_upper),
-    line(right, row_top, right, row_upper),
-    line(left, row_lower, left, row_bottom),
-    line(0, row_lower, 0, row_bottom),
-    line(right, row_lower, right, row_bottom),
-    line(left, row_upper, 0, row_lower),
-    line(0, row_upper, right, row_lower),
-    corner(left, row_top, 0, row_tip_top, right, row_top),
-    corner(left, row_bottom, 0, row_tip_bottom, right, row_bottom),
-    line(left, row_lower, -half, 0),
-    line(right, row_upper, half, 0),
+  // how far down the left/right sides the shoulder and inner points sit,
+  // as a fraction of the half-height
+  let shoulder = h *. 0.55
+  let inner = h *. 0.15
+
+  let first_half = [
+    // middle top
+    #(0.0, 0.0 -. h -. p),
+    // top-left diagonal, down to the left shoulder
+    #(0.0 -. w, 0.0 -. shoulder),
+    // straight down the left side
+    #(0.0 -. w, 0.0 -. inner),
   ]
-  |> string.join(" ")
+
+  let second_half =
+    first_half
+    |> list.reverse
+    |> list.map(fn(point) {
+      let #(x, y) = point
+      #(0.0 -. x, 0.0 -. y)
+    })
+
+  list.append(first_half, second_half)
 }
 
-fn point(x: Int, y: Int) -> String {
-  int.to_string(x) <> "," <> int.to_string(y)
+/// The position along the Cool S's centreline at `t`, where `t` is a
+/// fraction of the total line length: `0.0` is the top tip, `1.0` is the
+/// bottom tip, and (thanks to the symmetry in `waypoints`) `0.5` always
+/// lands exactly in the middle of the shape, at `(0, 0)`.
+pub fn at(model: Model, t: Float) -> #(Float, Float) {
+  let points = waypoints(model)
+  let segments = list.zip(points, list.drop(points, 1))
+  let lengths = list.map(segments, segment_length)
+  let target = t *. float.sum(lengths)
+  walk(segments, lengths, target)
 }
 
-fn line(x1: Int, y1: Int, x2: Int, y2: Int) -> String {
-  "M" <> point(x1, y1) <> " L" <> point(x2, y2)
+fn segment_length(segment: #(#(Float, Float), #(Float, Float))) -> Float {
+  let #(#(x1, y1), #(x2, y2)) = segment
+  let assert Ok(length) =
+    float.square_root(
+      { x2 -. x1 } *. { x2 -. x1 } +. { y2 -. y1 } *. { y2 -. y1 },
+    )
+  length
 }
 
-fn corner(x1: Int, y1: Int, x2: Int, y2: Int, x3: Int, y3: Int) -> String {
-  "M" <> point(x1, y1) <> " L" <> point(x2, y2) <> " L" <> point(x3, y3)
+fn walk(
+  segments: List(#(#(Float, Float), #(Float, Float))),
+  lengths: List(Float),
+  target: Float,
+) -> #(Float, Float) {
+  case segments, lengths {
+    [#(#(x1, y1), #(x2, y2)), ..rest_segments], [length, ..rest_lengths] ->
+      case target <=. length || rest_segments == [] {
+        True -> {
+          let fraction = case length >. 0.0 {
+            True -> float.clamp(target /. length, min: 0.0, max: 1.0)
+            False -> 0.0
+          }
+          #(x1 +. { x2 -. x1 } *. fraction, y1 +. { y2 -. y1 } *. fraction)
+        }
+        False -> walk(rest_segments, rest_lengths, target -. length)
+      }
+    _, _ -> #(0.0, 0.0)
+  }
+}
+
+/// Renders the centreline as an SVG path `d` string.
+fn path(model: Model) -> String {
+  case waypoints(model) {
+    [] -> ""
+    [first, ..rest] ->
+      "M"
+      <> format_point(first)
+      <> " L"
+      <> { rest |> list.map(format_point) |> string.join(" ") }
+  }
+}
+
+fn format_point(point: #(Float, Float)) -> String {
+  let #(x, y) = point
+  round(x) <> "," <> round(y)
+}
+
+fn round(value: Float) -> String {
+  value |> float.to_precision(3) |> float.to_string
 }
 
 fn control(
