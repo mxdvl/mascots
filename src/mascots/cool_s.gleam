@@ -17,7 +17,7 @@ pub type Model {
     height: Float,
     pointiness: Float,
     colours: List(String),
-    rotation_count: Int,
+    flips: Int,
   )
 }
 
@@ -26,7 +26,7 @@ pub type Message {
   UserMovedHeight(Float)
   UserMovedPointiness(Float)
   UserAddedRibbon
-  UserRotated
+  UserFlipped
   UserSwappedColours(index: Int)
   UserRemovedRibbon(index: Int)
   UserChangedColour(index: Int, colour: String)
@@ -49,7 +49,7 @@ fn defaults() -> Model {
     height: 16.0,
     pointiness: 21.0,
     colours: pride.trans,
-    rotation_count: 0,
+    flips: 0,
   )
 }
 
@@ -92,9 +92,14 @@ pub fn init(pairs: List(#(String, String))) -> Model {
   }
   let colours =
     pairs
-    |> list.key_find("colours")
-    |> result.map(string.split(_, ","))
-    |> result.unwrap(fallback.colours)
+    |> list.filter(fn(pair) { pair.0 == "colours" })
+    |> list.flat_map(fn(pair) { string.split(pair.1, ",") })
+  let colours = case colours {
+    [] -> fallback.colours
+    colours -> colours
+  }
+  let colours =
+    colours
     |> list.take(max_ribbons)
     |> list.index_map(fn(colour, index) {
       let default =
@@ -110,7 +115,7 @@ pub fn init(pairs: List(#(String, String))) -> Model {
     height: get_float("height", 8.0, 28.0, fallback.height),
     pointiness: get_float("pointiness", 0.0, 40.0, fallback.pointiness),
     colours:,
-    rotation_count: 0,
+    flips: 0,
   )
 }
 
@@ -127,7 +132,7 @@ pub fn update(model: Model, message: Message) -> Model {
         list.append(model.colours, ["ffffff"]) |> list.take(max_ribbons)
       Model(..model, colours:)
     }
-    UserRotated -> Model(..model, rotation_count: model.rotation_count + 1)
+    UserFlipped -> Model(..model, flips: model.flips + 1)
     UserSwappedColours(index) ->
       case index < 0 {
         True -> model
@@ -176,8 +181,7 @@ pub fn to_pairs(model: Model) -> List(#(String, String)) {
     #("width", format_dimension(model.width)),
     #("height", format_dimension(model.height)),
     #("pointiness", format_dimension(model.pointiness)),
-
-    #("colours", string.join(model.colours, ",")),
+    ..list.map(model.colours, fn(colour) { #("colours", colour) })
   ]
 }
 
@@ -204,9 +208,9 @@ pub fn view(model: Model) -> Element(Message) {
       [
         attribute.type_("button"),
         attribute.attribute("title", "Rotate 180° clockwise"),
-        event.on_click(UserRotated),
+        event.on_click(UserFlipped),
       ],
-      [html.text("Rotate 180° clockwise")],
+      [html.text("Flip")],
     ),
     html.fieldset([attribute.class("ribbon-controls")], [
       html.legend([], [html.text("Ribbons (" <> int.to_string(count) <> ")")]),
@@ -303,9 +307,7 @@ fn cool_s(model: Model) -> Element(Message) {
           attribute.class("cool-s-rotation"),
           attribute.attribute(
             "style",
-            "transform: rotate("
-              <> int.to_string(model.rotation_count * 180)
-              <> "deg)",
+            "transform: rotate(" <> int.to_string(model.flips * 180) <> "deg)",
           ),
           attribute.attribute("mask", "url(#" <> fold_mask_id <> ")"),
         ],

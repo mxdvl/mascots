@@ -13,7 +13,7 @@ pub fn trans_default_test() {
     height: 16.0,
     pointiness: 21.0,
     colours: pride.trans,
-    rotation_count: 0,
+    flips: 0,
   ))
 }
 
@@ -94,12 +94,12 @@ pub fn ribbon_limits_test() {
 
 pub fn clockwise_rotation_test() {
   let original = cool_s.init([#("colours", "123456,abcdef,ffffff")])
-  let once = cool_s.update(original, cool_s.UserRotated)
-  once |> should.equal(cool_s.Model(..original, rotation_count: 1))
-  let twice = cool_s.update(once, cool_s.UserRotated)
-  twice |> should.equal(cool_s.Model(..original, rotation_count: 2))
-  let thrice = cool_s.update(twice, cool_s.UserRotated)
-  thrice |> should.equal(cool_s.Model(..original, rotation_count: 3))
+  let once = cool_s.update(original, cool_s.UserFlipped)
+  once |> should.equal(cool_s.Model(..original, flips: 1))
+  let twice = cool_s.update(once, cool_s.UserFlipped)
+  twice |> should.equal(cool_s.Model(..original, flips: 2))
+  let thrice = cool_s.update(twice, cool_s.UserFlipped)
+  thrice |> should.equal(cool_s.Model(..original, flips: 3))
 
   list.each([#(once, "180"), #(twice, "360"), #(thrice, "540")], fn(rotation) {
     let #(model, degrees) = rotation
@@ -112,18 +112,18 @@ pub fn clockwise_rotation_test() {
     model |> cool_s.to_pairs |> cool_s.init |> should.equal(original)
   })
 
-  cool_s.init([#("rotation_count", "5")]).rotation_count |> should.equal(0)
+  cool_s.init([#("flips", "5")]).flips |> should.equal(0)
   once
   |> cool_s.update(cool_s.UserMovedWidth(30.0))
   |> cool_s.update(cool_s.UserSelectedPreset("Rainbow"))
-  |> fn(model) { model.rotation_count }
+  |> fn(model) { model.flips }
   |> should.equal(1)
 }
 
 pub fn swap_adjacent_colours_test() {
   let model =
     cool_s.init([#("colours", "111111,222222,333333,444444")])
-    |> cool_s.update(cool_s.UserRotated)
+    |> cool_s.update(cool_s.UserFlipped)
 
   list.each(
     [
@@ -156,14 +156,43 @@ pub fn hash_free_colour_links_test() {
     |> cool_s.update(cool_s.UserChangedColour(2, "#AABBCC"))
     |> cool_s.update(cool_s.UserSwappedColours(0))
   let pairs = cool_s.to_pairs(model)
-  list.key_find(pairs, "colours")
-  |> should.equal(Ok("123456,abcdef,aabbcc"))
+  pairs
+  |> list.filter(fn(pair) { pair.0 == "colours" })
+  |> should.equal([
+    #("colours", "123456"),
+    #("colours", "abcdef"),
+    #("colours", "aabbcc"),
+  ])
 
   let query = uri.query_to_string(pairs)
   query |> string.contains("%23") |> should.be_false
   query |> string.contains("#") |> should.be_false
+  query
+  |> string.contains("colours=123456&colours=abcdef&colours=aabbcc")
+  |> should.be_true
   let assert Ok(restored) = uri.parse_query(query)
   cool_s.init(restored) |> should.equal(model)
+}
+
+pub fn repeated_colour_parameters_test() {
+  let model =
+    cool_s.init([
+      #("colours", "#ABCDEF"),
+      #("width", "30"),
+      #("colours", "invalid"),
+      #("colours", "abcdef"),
+      #("colours", ""),
+      #("colours", "123456"),
+    ])
+  model.colours
+  |> should.equal(["abcdef", "f5a9b8", "abcdef", "f5a9b8", "123456"])
+  model.width |> should.equal(30.0)
+  let assert Ok(pairs) =
+    model |> cool_s.to_pairs |> uri.query_to_string |> uri.parse_query
+  cool_s.init(pairs) |> should.equal(model)
+
+  cool_s.init(list.repeat(#("colours", "123456"), 99)).colours
+  |> should.equal(list.repeat("123456", 16))
 }
 
 pub fn presets_and_links_test() {
@@ -197,7 +226,7 @@ pub fn controls_and_render_smoke_test() {
   |> should.be_true
   let assert [size_controls, colours_and_presets] =
     string.split(markup, "<fieldset class=\"ribbon-controls\">")
-  size_controls |> string.contains("Rotate 180° clockwise") |> should.be_true
+  size_controls |> string.contains(">Flip</button>") |> should.be_true
   size_controls |> string.contains("Flag palettes") |> should.be_false
   let assert [colour_controls, presets] =
     string.split(colours_and_presets, "<fieldset class=\"pride-presets\">")
