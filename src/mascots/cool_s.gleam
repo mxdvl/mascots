@@ -370,13 +370,13 @@ fn strip(
 /// around the S to the lower-left fold. Its midpoint is the central crossing.
 pub fn at(model: Model, fraction: Float) -> Point {
   let segments = model |> boundary(0.5) |> list.window_by_2
-  let lengths =
-    list.map(segments, fn(segment) {
-      let delta_x = segment.1.x -. segment.0.x
-      let delta_y = segment.1.y -. segment.0.y
-      float.square_root(delta_x *. delta_x +. delta_y *. delta_y)
-      |> result.unwrap(0.0)
-    })
+  let lengths = {
+    use segment <- list.map(segments)
+    let delta_x = segment.1.x -. segment.0.x
+    let delta_y = segment.1.y -. segment.0.y
+    float.square_root(delta_x *. delta_x +. delta_y *. delta_y)
+    |> result.unwrap(0.0)
+  }
   walk(segments, lengths, fraction *. float.sum(lengths))
 }
 
