@@ -106,8 +106,8 @@ pub fn update(model: Model, message: Message) -> Model {
       }
     UserChangedColour(index, colour) -> {
       let colours =
-        list.index_map(model.colours, fn(previous, i) {
-          case i == index {
+        list.index_map(model.colours, fn(previous, colour_index) {
+          case colour_index == index {
             True -> normalise_colour(colour, previous)
             False -> previous
           }
@@ -270,12 +270,12 @@ fn cool_s(model: Model) -> Element(Message) {
 /// Cut through both ribbon layers so the folds reveal any background,
 /// including when the SVG is exported onto a different colour.
 fn fold_mask(model: Model) -> Element(Message) {
-  let w = int.to_float(model.width)
-  let h = int.to_float(model.height)
+  let width = int.to_float(model.width)
+  let height = int.to_float(model.height)
   let seam = [
-    Point(0.0, 0.0 -. h *. 1.5),
-    Point(0.0, 0.0 -. h *. 0.5),
-    Point(w, h *. 0.5),
+    Point(0.0, 0.0 -. height *. 1.5),
+    Point(0.0, 0.0 -. height *. 0.5),
+    Point(width, height *. 0.5),
   ]
   let opposite =
     list.map(seam, fn(point) { Point(0.0 -. point.x, 0.0 -. point.y) })
@@ -303,7 +303,7 @@ fn fold_mask(model: Model) -> Element(Message) {
         attribute.attribute("d", path(seam) <> " " <> path(opposite)),
         attribute.attribute("fill", "none"),
         attribute.attribute("stroke", "black"),
-        attribute.attribute("stroke-width", "0.8"),
+        attribute.attribute("stroke-width", float.to_string(0.8)),
         attribute.attribute("stroke-linejoin", "round"),
         attribute.attribute("stroke-linecap", "round"),
       ]),
@@ -314,23 +314,23 @@ fn fold_mask(model: Model) -> Element(Message) {
 /// The two edges of the folded band interpolate into parallel lanes.
 /// The lane order reverses around the bottom fold to keep every ribbon
 /// connected to its own colour, including along the hidden back diagonal.
-fn boundary(model: Model, t: Float) -> List(Point) {
-  let w = int.to_float(model.width)
-  let h = int.to_float(model.height)
-  let p = int.to_float(model.pointiness)
-  let top = w *. t
-  let bottom = w *. { 1.0 -. t }
+fn boundary(model: Model, fraction: Float) -> List(Point) {
+  let width = int.to_float(model.width)
+  let height = int.to_float(model.height)
+  let pointiness = int.to_float(model.pointiness)
+  let top = width *. fraction
+  let bottom = width *. { 1.0 -. fraction }
   [
-    Point(top, 0.0 -. h *. 0.5),
-    Point(top, 0.0 -. h *. 1.5),
-    Point(0.0, 0.0 -. h *. 1.5 -. p *. t),
-    Point(0.0 -. top, 0.0 -. h *. 1.5),
-    Point(0.0 -. top, 0.0 -. h *. 0.5),
-    Point(bottom, h *. 0.5),
-    Point(bottom, h *. 1.5),
-    Point(0.0, h *. 1.5 +. p *. { 1.0 -. t }),
-    Point(0.0 -. bottom, h *. 1.5),
-    Point(0.0 -. bottom, h *. 0.5),
+    Point(top, 0.0 -. height *. 0.5),
+    Point(top, 0.0 -. height *. 1.5),
+    Point(0.0, 0.0 -. height *. 1.5 -. pointiness *. fraction),
+    Point(0.0 -. top, 0.0 -. height *. 1.5),
+    Point(0.0 -. top, 0.0 -. height *. 0.5),
+    Point(bottom, height *. 0.5),
+    Point(bottom, height *. 1.5),
+    Point(0.0, height *. 1.5 +. pointiness *. { 1.0 -. fraction }),
+    Point(0.0 -. bottom, height *. 1.5),
+    Point(0.0 -. bottom, height *. 0.5),
   ]
 }
 
@@ -356,17 +356,18 @@ fn strip(
 
 /// Arc-length position along the front band, from the upper-right fold
 /// around the S to the lower-left fold. Its midpoint is the central crossing.
-pub fn at(model: Model, t: Float) -> Point {
+pub fn at(model: Model, fraction: Float) -> Point {
   let points = boundary(model, 0.5)
   let segments = list.zip(points, list.drop(points, 1))
   let lengths =
     list.map(segments, fn(segment) {
-      let dx = segment.1.x -. segment.0.x
-      let dy = segment.1.y -. segment.0.y
-      let assert Ok(length) = float.square_root(dx *. dx +. dy *. dy)
+      let delta_x = segment.1.x -. segment.0.x
+      let delta_y = segment.1.y -. segment.0.y
+      let assert Ok(length) =
+        float.square_root(delta_x *. delta_x +. delta_y *. delta_y)
       length
     })
-  walk(segments, lengths, t *. float.sum(lengths))
+  walk(segments, lengths, fraction *. float.sum(lengths))
 }
 
 fn walk(
