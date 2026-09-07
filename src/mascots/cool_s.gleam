@@ -99,7 +99,7 @@ pub fn init(pairs: List(#(String, String))) -> Model {
   }
   let colours =
     pairs
-    |> list.filter(fn(pair) { pair.0 == "colours" })
+    |> list.filter(fn(pair) { pair.0 == "colour" })
   let colours = case colours {
     [] -> fallback.colours
     colours ->
@@ -130,7 +130,6 @@ pub fn init(pairs: List(#(String, String))) -> Model {
 }
 
 pub fn update(model: Model, message: Message) -> Model {
-  let model = Model(..model, colours: non_empty_colours(model.colours))
   case message {
     UserMovedWidth(width) ->
       Model(..model, width: float.clamp(width, 14.0, 46.0))
@@ -140,7 +139,7 @@ pub fn update(model: Model, message: Message) -> Model {
       Model(..model, pointiness: float.clamp(pointiness, 0.0, 40.0))
     UserAddedRibbon -> {
       let colours =
-        list.append(model.colours, ["ffffff"]) |> list.take(max_ribbons)
+        list.append(model.colours, ["ffffff"]) |> list.take(max_ribbons) |> non_empty_colours
       Model(..model, colours:)
     }
     UserFlipped -> Model(..model, flips: model.flips + 1)
@@ -192,7 +191,7 @@ pub fn to_pairs(model: Model) -> List(#(String, String)) {
     #("width", format_dimension(model.width)),
     #("height", format_dimension(model.height)),
     #("pointiness", format_dimension(model.pointiness)),
-    ..list.map(model.colours, fn(colour) { #("colours", colour) })
+    ..list.map(model.colours, fn(colour) { #("colour", colour) })
   ]
 }
 

@@ -84,16 +84,16 @@ pub fn add_remove_and_edit_test() {
 }
 
 pub fn ribbon_limits_test() {
-  let single = cool_s.init([#("colours", "ffffff")])
+  let single = cool_s.init([#("colour", "ffffff")])
   cool_s.update(single, cool_s.UserRemovedRibbon(0)) |> should.equal(single)
   let full =
-    cool_s.init([#("colours", string.join(list.repeat("ffffff", 99), ","))])
+    cool_s.init([#("colour", string.join(list.repeat("ffffff", 99), ","))])
   list.length(full.colours) |> should.equal(16)
   cool_s.update(full, cool_s.UserAddedRibbon) |> should.equal(full)
 }
 
 pub fn clockwise_rotation_test() {
-  let original = cool_s.init([#("colours", "123456,abcdef,ffffff")])
+  let original = cool_s.init([#("colour", "123456,abcdef,ffffff")])
   let once = cool_s.update(original, cool_s.UserFlipped)
   once |> should.equal(cool_s.Model(..original, flips: 1))
   let twice = cool_s.update(once, cool_s.UserFlipped)
@@ -122,7 +122,7 @@ pub fn clockwise_rotation_test() {
 
 pub fn swap_adjacent_colours_test() {
   let model =
-    cool_s.init([#("colours", "111111,222222,333333,444444")])
+    cool_s.init([#("colour", "111111,222222,333333,444444")])
     |> cool_s.update(cool_s.UserFlipped)
 
   list.each(
@@ -144,7 +144,7 @@ pub fn swap_adjacent_colours_test() {
     cool_s.update(model, cool_s.UserSwappedColours(index))
     |> should.equal(model)
   })
-  let single = cool_s.init([#("colours", "ffffff")])
+  let single = cool_s.init([#("colour", "ffffff")])
   cool_s.update(single, cool_s.UserSwappedColours(0)) |> should.equal(single)
   let empty = cool_s.Model(..model, colours: [])
   cool_s.update(empty, cool_s.UserSwappedColours(0))
@@ -153,16 +153,16 @@ pub fn swap_adjacent_colours_test() {
 
 pub fn hash_free_colour_links_test() {
   let model =
-    cool_s.init([#("colours", "#ABCDEF,#123456,ffffff")])
+    cool_s.init([#("colour", "#ABCDEF,#123456,ffffff")])
     |> cool_s.update(cool_s.UserChangedColour(2, "#AABBCC"))
     |> cool_s.update(cool_s.UserSwappedColours(0))
   let pairs = cool_s.to_pairs(model)
   pairs
-  |> list.filter(fn(pair) { pair.0 == "colours" })
+  |> list.filter(fn(pair) { pair.0 == "colour" })
   |> should.equal([
-    #("colours", "123456"),
-    #("colours", "abcdef"),
-    #("colours", "aabbcc"),
+    #("colour", "123456"),
+    #("colour", "abcdef"),
+    #("colour", "aabbcc"),
   ])
 
   let query = uri.query_to_string(pairs)
@@ -178,12 +178,12 @@ pub fn hash_free_colour_links_test() {
 pub fn repeated_colour_parameters_test() {
   let model =
     cool_s.init([
-      #("colours", "#ABCDEF"),
+      #("colour", "#ABCDEF"),
       #("width", "30"),
-      #("colours", "invalid"),
-      #("colours", "abcdef"),
-      #("colours", ""),
-      #("colours", "123456"),
+      #("colour", "invalid"),
+      #("colour", "abcdef"),
+      #("colour", ""),
+      #("colour", "123456"),
     ])
   model.colours
   |> should.equal(["abcdef", "f5a9b8", "abcdef", "123456"])
@@ -192,16 +192,16 @@ pub fn repeated_colour_parameters_test() {
     model |> cool_s.to_pairs |> uri.query_to_string |> uri.parse_query
   cool_s.init(pairs) |> should.equal(model)
 
-  cool_s.init(list.repeat(#("colours", "123456"), 99)).colours
+  cool_s.init(list.repeat(#("colour", "123456"), 99)).colours
   |> should.equal(list.repeat("123456", 16))
 }
 
 pub fn empty_palette_uses_navy_test() {
   list.each(
     [
-      [#("colours", "")],
-      [#("colours", ",,")],
-      [#("colours", ""), #("colours", "")],
+      [#("colour", "")],
+      [#("colour", ",,")],
+      [#("colour", ""), #("colour", "")],
     ],
     fn(pairs) {
       let model = cool_s.init(pairs)
@@ -233,7 +233,7 @@ pub fn presets_and_links_test() {
   cool_s.update(original, cool_s.UserSelectedPreset("unknown"))
   |> should.equal(original)
 
-  cool_s.init([#("ribbons", "2"), #("colours", "ABCDEF,invalid,123456")]).colours
+  cool_s.init([#("ribbons", "2"), #("colour", "ABCDEF,invalid,123456")]).colours
   |> should.equal(["abcdef", "f5a9b8", "123456"])
 }
 
@@ -259,7 +259,7 @@ pub fn controls_and_render_smoke_test() {
   colour_controls |> string.contains("type=\"color\"") |> should.be_true
   presets |> string.contains("Flag palettes") |> should.be_true
   let single =
-    cool_s.init([#("colours", "ffffff")])
+    cool_s.init([#("colour", "ffffff")])
     |> cool_s.view
     |> element.to_string
   single
