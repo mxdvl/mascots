@@ -32,6 +32,8 @@ pub type Point {
 
 pub const id = "cool_s"
 
+const fold_mask_id = "cool_s_folds"
+
 const max_ribbons = 16
 
 fn defaults() -> Model {
@@ -258,7 +260,7 @@ fn cool_s(model: Model) -> Element(Message) {
     [
       svg.defs([], [fold_mask(model)]),
       svg.g(
-        [attribute.attribute("mask", "url(#" <> id <> "_folds)")],
+        [attribute.attribute("mask", "url(#" <> fold_mask_id <> ")")],
         list.append(back, front),
       ),
     ],
@@ -280,7 +282,7 @@ fn fold_mask(model: Model) -> Element(Message) {
 
   svg.mask(
     [
-      attribute.id(id <> "_folds"),
+      attribute.id(fold_mask_id),
       attribute.attribute("maskUnits", "userSpaceOnUse"),
       attribute.attribute("maskContentUnits", "userSpaceOnUse"),
       attribute.attribute("mask-type", "luminance"),
