@@ -74,7 +74,6 @@ body {
 
     .cool-s-rotation {
         transform-box: view-box;
-        transform-origin: center;
         transition: transform 400ms ease-in-out;
 
         @media (prefers-reduced-motion: reduce) {
