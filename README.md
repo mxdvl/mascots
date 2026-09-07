@@ -23,3 +23,8 @@ Further documentation can be found at <https://mascots.hexdocs.pm/>.
 gleam run   # Run the project
 gleam test  # Run the tests
 ```
+
+
+## AI Disclosure
+
+This project’s code is written with assistance from large language models (LLMs). Any slop remains the responsibility of its authors.
