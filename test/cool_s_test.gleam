@@ -1,5 +1,6 @@
 import gleam/list
 import gleam/string
+import gleam/uri
 import gleeunit/should
 import lustre/element
 import mascots/cool_s
@@ -12,6 +13,7 @@ pub fn trans_default_test() {
     height: 16.0,
     pointiness: 21.0,
     colours: pride.trans,
+    rotation_count: 0,
   ))
 }
 
@@ -90,6 +92,80 @@ pub fn ribbon_limits_test() {
   cool_s.update(full, cool_s.UserAddedRibbon) |> should.equal(full)
 }
 
+pub fn clockwise_rotation_test() {
+  let original = cool_s.init([#("colours", "123456,abcdef,ffffff")])
+  let once = cool_s.update(original, cool_s.UserRotated)
+  once |> should.equal(cool_s.Model(..original, rotation_count: 1))
+  let twice = cool_s.update(once, cool_s.UserRotated)
+  twice |> should.equal(cool_s.Model(..original, rotation_count: 2))
+  let thrice = cool_s.update(twice, cool_s.UserRotated)
+  thrice |> should.equal(cool_s.Model(..original, rotation_count: 3))
+
+  list.each([#(once, "180"), #(twice, "360"), #(thrice, "540")], fn(rotation) {
+    let #(model, degrees) = rotation
+    model
+    |> cool_s.view
+    |> element.to_string
+    |> string.contains("transform: rotate(" <> degrees <> "deg)")
+    |> should.be_true
+    model |> cool_s.to_pairs |> should.equal(cool_s.to_pairs(original))
+    model |> cool_s.to_pairs |> cool_s.init |> should.equal(original)
+  })
+
+  cool_s.init([#("rotation_count", "5")]).rotation_count |> should.equal(0)
+  once
+  |> cool_s.update(cool_s.UserMovedWidth(30.0))
+  |> cool_s.update(cool_s.UserSelectedPreset("Rainbow"))
+  |> fn(model) { model.rotation_count }
+  |> should.equal(1)
+}
+
+pub fn swap_adjacent_colours_test() {
+  let model =
+    cool_s.init([#("colours", "111111,222222,333333,444444")])
+    |> cool_s.update(cool_s.UserRotated)
+
+  list.each(
+    [
+      #(0, ["222222", "111111", "333333", "444444"]),
+      #(1, ["111111", "333333", "222222", "444444"]),
+      #(2, ["111111", "222222", "444444", "333333"]),
+    ],
+    fn(swap) {
+      let #(index, colours) = swap
+      let swapped = cool_s.update(model, cool_s.UserSwappedColours(index))
+      swapped |> should.equal(cool_s.Model(..model, colours:))
+      swapped
+      |> cool_s.update(cool_s.UserSwappedColours(index))
+      |> should.equal(model)
+    },
+  )
+  list.each([-1, 3, 4, 99], fn(index) {
+    cool_s.update(model, cool_s.UserSwappedColours(index))
+    |> should.equal(model)
+  })
+  let single = cool_s.init([#("colours", "ffffff")])
+  cool_s.update(single, cool_s.UserSwappedColours(0)) |> should.equal(single)
+  let empty = cool_s.Model(..model, colours: [])
+  cool_s.update(empty, cool_s.UserSwappedColours(0)) |> should.equal(empty)
+}
+
+pub fn hash_free_colour_links_test() {
+  let model =
+    cool_s.init([#("colours", "#ABCDEF,#123456,ffffff")])
+    |> cool_s.update(cool_s.UserChangedColour(2, "#AABBCC"))
+    |> cool_s.update(cool_s.UserSwappedColours(0))
+  let pairs = cool_s.to_pairs(model)
+  list.key_find(pairs, "colours")
+  |> should.equal(Ok("123456,abcdef,aabbcc"))
+
+  let query = uri.query_to_string(pairs)
+  query |> string.contains("%23") |> should.be_false
+  query |> string.contains("#") |> should.be_false
+  let assert Ok(restored) = uri.parse_query(query)
+  cool_s.init(restored) |> should.equal(model)
+}
+
 pub fn presets_and_links_test() {
   let original = cool_s.init([#("width", "36"), #("height", "24")])
   list.each(pride.presets, fn(preset) {
@@ -112,6 +188,28 @@ pub fn controls_and_render_smoke_test() {
   markup |> string.contains("Remove ribbon 3") |> should.be_true
   markup |> string.contains("type=\"color\"") |> should.be_true
   markup |> string.split("type=\"range\"") |> list.length |> should.equal(4)
+  markup |> string.contains("Flip in / out") |> should.be_false
+  markup
+  |> string.contains("Swap ribbon 1 with next ribbon")
+  |> should.be_true
+  markup
+  |> string.contains("aria-label=\"Swap ribbon 5 with next ribbon\" disabled")
+  |> should.be_true
+  let assert [size_controls, colours_and_presets] =
+    string.split(markup, "<fieldset class=\"ribbon-controls\">")
+  size_controls |> string.contains("Rotate 180° clockwise") |> should.be_true
+  size_controls |> string.contains("Flag palettes") |> should.be_false
+  let assert [colour_controls, presets] =
+    string.split(colours_and_presets, "<fieldset class=\"pride-presets\">")
+  colour_controls |> string.contains("type=\"color\"") |> should.be_true
+  presets |> string.contains("Flag palettes") |> should.be_true
+  let single =
+    cool_s.init([#("colours", "ffffff")])
+    |> cool_s.view
+    |> element.to_string
+  single
+  |> string.contains("aria-label=\"Swap ribbon 1 with next ribbon\" disabled")
+  |> should.be_true
   cool_s.preview() |> string.contains("fill=\"#5bcefa\"") |> should.be_true
   cool_s.preview() |> string.contains("NaN") |> should.be_false
 }

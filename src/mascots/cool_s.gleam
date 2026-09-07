@@ -12,7 +12,13 @@ import mascots/pride
 
 /// Each colour is one ribbon, in order along the folded Cool S band.
 pub type Model {
-  Model(width: Float, height: Float, pointiness: Float, colours: List(String))
+  Model(
+    width: Float,
+    height: Float,
+    pointiness: Float,
+    colours: List(String),
+    rotation_count: Int,
+  )
 }
 
 pub type Message {
@@ -20,7 +26,8 @@ pub type Message {
   UserMovedHeight(Float)
   UserMovedPointiness(Float)
   UserAddedRibbon
-  UserFlippedRibbons
+  UserRotated
+  UserSwappedColours(index: Int)
   UserRemovedRibbon(index: Int)
   UserChangedColour(index: Int, colour: String)
   UserSelectedPreset(String)
@@ -37,7 +44,13 @@ const fold_mask_id = "cool_s_folds"
 const max_ribbons = 16
 
 fn defaults() -> Model {
-  Model(width: 22.0, height: 16.0, pointiness: 21.0, colours: pride.trans)
+  Model(
+    width: 22.0,
+    height: 16.0,
+    pointiness: 21.0,
+    colours: pride.trans,
+    rotation_count: 0,
+  )
 }
 
 fn normalise_colour(value: String, fallback: String) -> String {
@@ -97,6 +110,7 @@ pub fn init(pairs: List(#(String, String))) -> Model {
     height: get_float("height", 8.0, 28.0, fallback.height),
     pointiness: get_float("pointiness", 0.0, 40.0, fallback.pointiness),
     colours:,
+    rotation_count: 0,
   )
 }
 
@@ -113,7 +127,22 @@ pub fn update(model: Model, message: Message) -> Model {
         list.append(model.colours, ["ffffff"]) |> list.take(max_ribbons)
       Model(..model, colours:)
     }
-    UserFlippedRibbons -> Model(..model, colours: list.reverse(model.colours))
+    UserRotated -> Model(..model, rotation_count: model.rotation_count + 1)
+    UserSwappedColours(index) ->
+      case index < 0 {
+        True -> model
+        False -> {
+          let #(before, remaining) = list.split(model.colours, at: index)
+          case remaining {
+            [first, second, ..rest] ->
+              Model(
+                ..model,
+                colours: list.append(before, [second, first, ..rest]),
+              )
+            _ -> model
+          }
+        }
+      }
     UserRemovedRibbon(index) ->
       case model.colours {
         [] | [_] -> model
@@ -168,6 +197,35 @@ pub fn view(model: Model) -> Element(Message) {
   let count = list.length(model.colours)
   element.fragment([
     cool_s(model),
+    control("Width", model.width, 14.0, 46.0, 2.0, UserMovedWidth),
+    control("Height", model.height, 8.0, 28.0, 1.0, UserMovedHeight),
+    control("Pointiness", model.pointiness, 0.0, 40.0, 1.0, UserMovedPointiness),
+    html.button(
+      [
+        attribute.type_("button"),
+        attribute.attribute("title", "Rotate 180° clockwise"),
+        event.on_click(UserRotated),
+      ],
+      [html.text("Rotate 180° clockwise")],
+    ),
+    html.fieldset([attribute.class("ribbon-controls")], [
+      html.legend([], [html.text("Ribbons (" <> int.to_string(count) <> ")")]),
+      element.fragment(
+        list.index_map(model.colours, fn(colour, index) {
+          colour_control(colour, index, count)
+        }),
+      ),
+      html.div([attribute.class("ribbon-actions")], [
+        html.button(
+          [
+            attribute.type_("button"),
+            attribute.disabled(count >= max_ribbons),
+            event.on_click(UserAddedRibbon),
+          ],
+          [html.text("+ Add ribbon")],
+        ),
+      ]),
+    ]),
     html.fieldset([attribute.class("pride-presets")], [
       html.legend([], [html.text("Flag palettes")]),
       html.div(
@@ -210,36 +268,6 @@ pub fn view(model: Model) -> Element(Message) {
         }),
       ),
     ]),
-    control("Width", model.width, 14.0, 46.0, 2.0, UserMovedWidth),
-    control("Height", model.height, 8.0, 28.0, 1.0, UserMovedHeight),
-    control("Pointiness", model.pointiness, 0.0, 40.0, 1.0, UserMovedPointiness),
-    html.fieldset([attribute.class("ribbon-controls")], [
-      html.legend([], [html.text("Ribbons (" <> int.to_string(count) <> ")")]),
-      element.fragment(
-        list.index_map(model.colours, fn(colour, index) {
-          colour_control(colour, index, count == 1)
-        }),
-      ),
-      html.div([attribute.class("ribbon-actions")], [
-        html.button(
-          [
-            attribute.type_("button"),
-            attribute.disabled(count >= max_ribbons),
-            event.on_click(UserAddedRibbon),
-          ],
-          [html.text("+ Add ribbon")],
-        ),
-        html.button(
-          [
-            attribute.type_("button"),
-            attribute.disabled(count < 2),
-            attribute.attribute("title", "Reverse the ribbon colour order"),
-            event.on_click(UserFlippedRibbons),
-          ],
-          [html.text("Flip in / out")],
-        ),
-      ]),
-    ]),
   ])
 }
 
@@ -271,7 +299,16 @@ fn cool_s(model: Model) -> Element(Message) {
     [
       svg.defs([], [fold_mask(model)]),
       svg.g(
-        [attribute.attribute("mask", "url(#" <> fold_mask_id <> ")")],
+        [
+          attribute.class("cool-s-rotation"),
+          attribute.attribute(
+            "style",
+            "transform: rotate("
+              <> int.to_string(model.rotation_count * 180)
+              <> "deg)",
+          ),
+          attribute.attribute("mask", "url(#" <> fold_mask_id <> ")"),
+        ],
         list.append(back, front),
       ),
     ],
@@ -423,11 +460,7 @@ fn round(value: Float) -> String {
   value |> float.to_precision(3) |> float.to_string
 }
 
-fn colour_control(
-  colour: String,
-  index: Int,
-  only_ribbon: Bool,
-) -> Element(Message) {
+fn colour_control(colour: String, index: Int, count: Int) -> Element(Message) {
   let name = "Ribbon " <> int.to_string(index + 1)
   html.div([attribute.class("ribbon-row")], [
     html.label([], [
@@ -441,8 +474,20 @@ fn colour_control(
     html.button(
       [
         attribute.type_("button"),
+        attribute.attribute(
+          "aria-label",
+          "Swap " <> string.lowercase(name) <> " with next ribbon",
+        ),
+        attribute.disabled(index >= count - 1),
+        event.on_click(UserSwappedColours(index)),
+      ],
+      [html.text("Swap ↓")],
+    ),
+    html.button(
+      [
+        attribute.type_("button"),
         attribute.attribute("aria-label", "Remove " <> string.lowercase(name)),
-        attribute.disabled(only_ribbon),
+        attribute.disabled(count == 1),
         event.on_click(UserRemovedRibbon(index)),
       ],
       [html.text("Remove")],
