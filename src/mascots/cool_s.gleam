@@ -67,6 +67,13 @@ fn normalise_colour(value: String, fallback: String) -> String {
   }
 }
 
+fn non_empty_colours(colours: List(String)) -> List(String) {
+  case colours {
+    [] -> ["000080"]
+    colours -> colours
+  }
+}
+
 // Sliders and older URLs can omit the decimal point required by float.parse.
 fn parse_dimension(value: String) -> Result(Float, Nil) {
   case float.parse(value) {
@@ -93,10 +100,13 @@ pub fn init(pairs: List(#(String, String))) -> Model {
   let colours =
     pairs
     |> list.filter(fn(pair) { pair.0 == "colours" })
-    |> list.flat_map(fn(pair) { string.split(pair.1, ",") })
   let colours = case colours {
     [] -> fallback.colours
-    colours -> colours
+    colours ->
+      colours
+      |> list.flat_map(fn(pair) { string.split(pair.1, ",") })
+      |> list.filter(fn(colour) { colour != "" })
+      |> non_empty_colours
   }
   let colours =
     colours
@@ -120,6 +130,7 @@ pub fn init(pairs: List(#(String, String))) -> Model {
 }
 
 pub fn update(model: Model, message: Message) -> Model {
+  let model = Model(..model, colours: non_empty_colours(model.colours))
   case message {
     UserMovedWidth(width) ->
       Model(..model, width: float.clamp(width, 14.0, 46.0))

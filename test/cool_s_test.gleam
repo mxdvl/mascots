@@ -147,7 +147,8 @@ pub fn swap_adjacent_colours_test() {
   let single = cool_s.init([#("colours", "ffffff")])
   cool_s.update(single, cool_s.UserSwappedColours(0)) |> should.equal(single)
   let empty = cool_s.Model(..model, colours: [])
-  cool_s.update(empty, cool_s.UserSwappedColours(0)) |> should.equal(empty)
+  cool_s.update(empty, cool_s.UserSwappedColours(0))
+  |> should.equal(cool_s.Model(..empty, colours: ["000080"]))
 }
 
 pub fn hash_free_colour_links_test() {
@@ -185,7 +186,7 @@ pub fn repeated_colour_parameters_test() {
       #("colours", "123456"),
     ])
   model.colours
-  |> should.equal(["abcdef", "f5a9b8", "abcdef", "f5a9b8", "123456"])
+  |> should.equal(["abcdef", "f5a9b8", "abcdef", "123456"])
   model.width |> should.equal(30.0)
   let assert Ok(pairs) =
     model |> cool_s.to_pairs |> uri.query_to_string |> uri.parse_query
@@ -193,6 +194,31 @@ pub fn repeated_colour_parameters_test() {
 
   cool_s.init(list.repeat(#("colours", "123456"), 99)).colours
   |> should.equal(list.repeat("123456", 16))
+}
+
+pub fn empty_palette_uses_navy_test() {
+  list.each(
+    [
+      [#("colours", "")],
+      [#("colours", ",,")],
+      [#("colours", ""), #("colours", "")],
+    ],
+    fn(pairs) {
+      let model = cool_s.init(pairs)
+      model.colours |> should.equal(["000080"])
+      cool_s.update(model, cool_s.UserRemovedRibbon(0))
+      |> should.equal(model)
+      model |> cool_s.to_pairs |> cool_s.init |> should.equal(model)
+      model
+      |> cool_s.view
+      |> element.to_string
+      |> string.contains("fill=\"#000080\"")
+      |> should.be_true
+    },
+  )
+  let empty = cool_s.Model(..cool_s.init([]), colours: [])
+  cool_s.update(empty, cool_s.UserRemovedRibbon(0)).colours
+  |> should.equal(["000080"])
 }
 
 pub fn presets_and_links_test() {
