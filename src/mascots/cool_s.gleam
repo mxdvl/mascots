@@ -117,7 +117,11 @@ pub fn update(model: Model, message: Message) -> Model {
     UserRemovedRibbon(index) ->
       case model.colours {
         [] | [_] -> model
-        _ -> Model(..model, colours: remove_colour(model.colours, index))
+        _ if index < 0 -> model
+        _ -> {
+          let #(before, remaining) = list.split(model.colours, at: index)
+          Model(..model, colours: list.append(before, list.drop(remaining, 1)))
+        }
       }
     UserChangedColour(index, colour) -> {
       let colours =
@@ -134,14 +138,6 @@ pub fn update(model: Model, message: Message) -> Model {
         Ok(colours) -> Model(..model, colours:)
         Error(_) -> model
       }
-  }
-}
-
-fn remove_colour(colours: List(String), index: Int) -> List(String) {
-  case colours, index {
-    [], _ -> []
-    [_, ..rest], 0 -> rest
-    [colour, ..rest], _ -> [colour, ..remove_colour(rest, index - 1)]
   }
 }
 
@@ -251,22 +247,14 @@ pub fn view(model: Model) -> Element(Message) {
 /// it, giving the six-column doodle its characteristic interlocking centre.
 fn cool_s(model: Model) -> Element(Message) {
   let count = int.to_float(list.length(model.colours))
-  let ribbons =
-    list.index_map(model.colours, fn(colour, index) {
-      let from = int.to_float(index) /. count
-      let to = int.to_float(index + 1) /. count
-      #(colour, boundary(model, from), boundary(model, to))
+  let #(back, front) =
+    model.colours
+    |> list.index_map(fn(colour, index) {
+      let left = boundary(model, int.to_float(index) /. count)
+      let right = boundary(model, int.to_float(index + 1) /. count)
+      #(strip(ends(left), ends(right), colour), strip(left, right, colour))
     })
-  let back =
-    list.map(ribbons, fn(ribbon) {
-      let #(colour, left, right) = ribbon
-      strip(ends(left), ends(right), colour)
-    })
-  let front =
-    list.map(ribbons, fn(ribbon) {
-      let #(colour, left, right) = ribbon
-      strip(left, right, colour)
-    })
+    |> list.unzip
 
   html.svg(
     [
@@ -381,8 +369,7 @@ fn strip(
 /// Arc-length position along the front band, from the upper-right fold
 /// around the S to the lower-left fold. Its midpoint is the central crossing.
 pub fn at(model: Model, fraction: Float) -> Point {
-  let points = boundary(model, 0.5)
-  let segments = list.zip(points, list.drop(points, 1))
+  let segments = model |> boundary(0.5) |> list.window_by_2
   let lengths =
     list.map(segments, fn(segment) {
       let delta_x = segment.1.x -. segment.0.x
