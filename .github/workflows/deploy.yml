@@ -1,8 +1,9 @@
-name: Deploy to GitHub Pages
+name: CI and GitHub Pages
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -11,7 +12,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -28,6 +29,14 @@ jobs:
           gleam-version: "1.18.1"
           rebar3-version: "3"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Run tests
+        run: gleam test
+
       - name: Build production bundle
         run: gleam run -m lustre/dev build --minify=True --outdir=dist
 
@@ -39,11 +48,13 @@ jobs:
             dist/index.html
 
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     environment:
