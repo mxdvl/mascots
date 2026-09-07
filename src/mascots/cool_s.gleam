@@ -255,7 +255,57 @@ fn cool_s(model: Model) -> Element(Message) {
           <> " coloured ribbons",
       ),
     ],
-    list.append(back, front),
+    [
+      svg.defs([], [fold_mask(model)]),
+      svg.g(
+        [attribute.attribute("mask", "url(#" <> id <> "_folds)")],
+        list.append(back, front),
+      ),
+    ],
+  )
+}
+
+/// Cut through both ribbon layers so the folds reveal any background,
+/// including when the SVG is exported onto a different colour.
+fn fold_mask(model: Model) -> Element(Message) {
+  let w = int.to_float(model.width)
+  let h = int.to_float(model.height)
+  let seam = [
+    Point(0.0, 0.0 -. h *. 1.5),
+    Point(0.0, 0.0 -. h *. 0.5),
+    Point(w, h *. 0.5),
+  ]
+  let opposite =
+    list.map(seam, fn(point) { Point(0.0 -. point.x, 0.0 -. point.y) })
+
+  svg.mask(
+    [
+      attribute.id(id <> "_folds"),
+      attribute.attribute("maskUnits", "userSpaceOnUse"),
+      attribute.attribute("maskContentUnits", "userSpaceOnUse"),
+      attribute.attribute("mask-type", "luminance"),
+      attribute.attribute("x", "-64"),
+      attribute.attribute("y", "-90"),
+      attribute.attribute("width", "128"),
+      attribute.attribute("height", "180"),
+    ],
+    [
+      svg.rect([
+        attribute.attribute("x", "-64"),
+        attribute.attribute("y", "-90"),
+        attribute.attribute("width", "128"),
+        attribute.attribute("height", "180"),
+        attribute.attribute("fill", "white"),
+      ]),
+      svg.path([
+        attribute.attribute("d", path(seam) <> " " <> path(opposite)),
+        attribute.attribute("fill", "none"),
+        attribute.attribute("stroke", "black"),
+        attribute.attribute("stroke-width", "0.8"),
+        attribute.attribute("stroke-linejoin", "round"),
+        attribute.attribute("stroke-linecap", "round"),
+      ]),
+    ],
   )
 }
 
