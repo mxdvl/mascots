@@ -12,13 +12,13 @@ import mascots/pride
 
 /// Each colour is one ribbon, in order along the folded Cool S band.
 pub type Model {
-  Model(width: Int, height: Int, pointiness: Int, colours: List(String))
+  Model(width: Float, height: Float, pointiness: Float, colours: List(String))
 }
 
 pub type Message {
-  UserMovedWidth(Int)
-  UserMovedHeight(Int)
-  UserMovedPointiness(Int)
+  UserMovedWidth(Float)
+  UserMovedHeight(Float)
+  UserMovedPointiness(Float)
   UserAddedRibbon
   UserFlippedRibbons
   UserRemovedRibbon(index: Int)
@@ -37,7 +37,7 @@ const fold_mask_id = "cool_s_folds"
 const max_ribbons = 16
 
 fn defaults() -> Model {
-  Model(width: 22, height: 16, pointiness: 21, colours: pride.trans)
+  Model(width: 22.0, height: 16.0, pointiness: 21.0, colours: pride.trans)
 }
 
 fn normalise_colour(value: String, fallback: String) -> String {
@@ -54,14 +54,27 @@ fn normalise_colour(value: String, fallback: String) -> String {
   }
 }
 
+// Sliders and older URLs can omit the decimal point required by float.parse.
+fn parse_dimension(value: String) -> Result(Float, Nil) {
+  case float.parse(value) {
+    Ok(parsed) -> Ok(parsed)
+    Error(_) -> float.parse(value <> ".0")
+  }
+}
+
 /// Restores the palette and dimensions. Each colour defines one ribbon.
 pub fn init(pairs: List(#(String, String))) -> Model {
   let fallback = defaults()
-  let get_int = fn(key: String, min: Int, max: Int, default: Int) -> Int {
+  let get_float = fn(
+    key: String,
+    minimum: Float,
+    maximum: Float,
+    default: Float,
+  ) -> Float {
     pairs
     |> list.key_find(key)
-    |> result.try(int.parse)
-    |> result.map(int.clamp(_, min: min, max: max))
+    |> result.try(parse_dimension)
+    |> result.map(float.clamp(_, min: minimum, max: maximum))
     |> result.unwrap(default)
   }
   let colours =
@@ -80,19 +93,21 @@ pub fn init(pairs: List(#(String, String))) -> Model {
     })
 
   Model(
-    width: get_int("width", 14, 46, fallback.width),
-    height: get_int("height", 8, 28, fallback.height),
-    pointiness: get_int("pointiness", 0, 40, fallback.pointiness),
+    width: get_float("width", 14.0, 46.0, fallback.width),
+    height: get_float("height", 8.0, 28.0, fallback.height),
+    pointiness: get_float("pointiness", 0.0, 40.0, fallback.pointiness),
     colours:,
   )
 }
 
 pub fn update(model: Model, message: Message) -> Model {
   case message {
-    UserMovedWidth(width) -> Model(..model, width: int.clamp(width, 14, 46))
-    UserMovedHeight(height) -> Model(..model, height: int.clamp(height, 8, 28))
+    UserMovedWidth(width) ->
+      Model(..model, width: float.clamp(width, 14.0, 46.0))
+    UserMovedHeight(height) ->
+      Model(..model, height: float.clamp(height, 8.0, 28.0))
     UserMovedPointiness(pointiness) ->
-      Model(..model, pointiness: int.clamp(pointiness, 0, 40))
+      Model(..model, pointiness: float.clamp(pointiness, 0.0, 40.0))
     UserAddedRibbon -> {
       let colours =
         list.append(model.colours, ["ffffff"]) |> list.take(max_ribbons)
@@ -130,14 +145,22 @@ fn remove_colour(colours: List(String), index: Int) -> List(String) {
   }
 }
 
+/// Share whole-number dimensions without rounding the live model.
 pub fn to_pairs(model: Model) -> List(#(String, String)) {
   [
-    #("width", int.to_string(model.width)),
-    #("height", int.to_string(model.height)),
-    #("pointiness", int.to_string(model.pointiness)),
+    #("width", format_dimension(model.width)),
+    #("height", format_dimension(model.height)),
+    #("pointiness", format_dimension(model.pointiness)),
 
     #("colours", string.join(model.colours, ",")),
   ]
+}
+
+fn format_dimension(value: Float) -> String {
+  value
+  |> float.to_precision(0)
+  |> float.to_string
+  |> string.remove_suffix(".0")
 }
 
 /// Run `gleam run -m render_preview` for an offline SVG preview.
@@ -191,9 +214,9 @@ pub fn view(model: Model) -> Element(Message) {
         }),
       ),
     ]),
-    control("Width", model.width, 14, 46, 2, UserMovedWidth),
-    control("Height", model.height, 8, 28, 1, UserMovedHeight),
-    control("Pointiness", model.pointiness, 0, 40, 1, UserMovedPointiness),
+    control("Width", model.width, 14.0, 46.0, 2.0, UserMovedWidth),
+    control("Height", model.height, 8.0, 28.0, 1.0, UserMovedHeight),
+    control("Pointiness", model.pointiness, 0.0, 40.0, 1.0, UserMovedPointiness),
     html.fieldset([attribute.class("ribbon-controls")], [
       html.legend([], [html.text("Ribbons (" <> int.to_string(count) <> ")")]),
       element.fragment(
@@ -270,8 +293,8 @@ fn cool_s(model: Model) -> Element(Message) {
 /// Cut through both ribbon layers so the folds reveal any background,
 /// including when the SVG is exported onto a different colour.
 fn fold_mask(model: Model) -> Element(Message) {
-  let width = int.to_float(model.width)
-  let height = int.to_float(model.height)
+  let width = model.width
+  let height = model.height
   let seam = [
     Point(0.0, 0.0 -. height *. 1.5),
     Point(0.0, 0.0 -. height *. 0.5),
@@ -315,9 +338,9 @@ fn fold_mask(model: Model) -> Element(Message) {
 /// The lane order reverses around the bottom fold to keep every ribbon
 /// connected to its own colour, including along the hidden back diagonal.
 fn boundary(model: Model, fraction: Float) -> List(Point) {
-  let width = int.to_float(model.width)
-  let height = int.to_float(model.height)
-  let pointiness = int.to_float(model.pointiness)
+  let width = model.width
+  let height = model.height
+  let pointiness = model.pointiness
   let top = width *. fraction
   let bottom = width *. { 1.0 -. fraction }
   [
@@ -335,9 +358,10 @@ fn boundary(model: Model, fraction: Float) -> List(Point) {
 }
 
 fn ends(points: List(Point)) -> List(Point) {
-  let assert [first, ..] = points
-  let assert [last, ..] = list.reverse(points)
-  [last, first]
+  case list.first(points), list.last(points) {
+    Ok(first), Ok(last) -> [last, first]
+    _, _ -> []
+  }
 }
 
 fn strip(
@@ -363,9 +387,8 @@ pub fn at(model: Model, fraction: Float) -> Point {
     list.map(segments, fn(segment) {
       let delta_x = segment.1.x -. segment.0.x
       let delta_y = segment.1.y -. segment.0.y
-      let assert Ok(length) =
-        float.square_root(delta_x *. delta_x +. delta_y *. delta_y)
-      length
+      float.square_root(delta_x *. delta_x +. delta_y *. delta_y)
+      |> result.unwrap(0.0)
     })
   walk(segments, lengths, fraction *. float.sum(lengths))
 }
@@ -442,22 +465,22 @@ fn colour_control(
 
 fn control(
   label: String,
-  value: Int,
-  min: Int,
-  max: Int,
-  step: Int,
-  update: fn(Int) -> Message,
+  value: Float,
+  minimum: Float,
+  maximum: Float,
+  step: Float,
+  update: fn(Float) -> Message,
 ) -> Element(Message) {
   html.label([], [
     html.span([], [html.text(label)]),
     html.input([
       attribute.type_("range"),
-      attribute.step(int.to_string(step)),
-      attribute.min(int.to_string(min)),
-      attribute.max(int.to_string(max)),
-      value |> int.to_string |> attribute.value,
+      attribute.step(float.to_string(step)),
+      attribute.min(float.to_string(minimum)),
+      attribute.max(float.to_string(maximum)),
+      value |> float.to_string |> attribute.value,
       event.on_input(fn(input) {
-        input |> int.parse |> result.unwrap(value) |> update
+        input |> parse_dimension |> result.unwrap(value) |> update
       }),
     ]),
   ])

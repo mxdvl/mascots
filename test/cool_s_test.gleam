@@ -8,11 +8,57 @@ import mascots/pride
 pub fn trans_default_test() {
   cool_s.init([])
   |> should.equal(cool_s.Model(
-    width: 22,
-    height: 16,
-    pointiness: 21,
+    width: 22.0,
+    height: 16.0,
+    pointiness: 21.0,
     colours: pride.trans,
   ))
+}
+
+pub fn float_geometry_test() {
+  let defaults = cool_s.init([])
+  let fractional =
+    cool_s.init([
+      #("width", "22.5"),
+      #("height", "16.25"),
+      #("pointiness", "21.75"),
+    ])
+  fractional
+  |> should.equal(
+    cool_s.Model(..defaults, width: 22.5, height: 16.25, pointiness: 21.75),
+  )
+  let pairs = cool_s.to_pairs(fractional)
+  list.key_find(pairs, "width") |> should.equal(Ok("23"))
+  list.key_find(pairs, "height") |> should.equal(Ok("16"))
+  list.key_find(pairs, "pointiness") |> should.equal(Ok("22"))
+  pairs
+  |> cool_s.init
+  |> should.equal(
+    cool_s.Model(..defaults, width: 23.0, height: 16.0, pointiness: 22.0),
+  )
+
+  defaults
+  |> cool_s.update(cool_s.UserMovedWidth(22.5))
+  |> cool_s.update(cool_s.UserMovedHeight(16.25))
+  |> cool_s.update(cool_s.UserMovedPointiness(21.75))
+  |> should.equal(fractional)
+
+  cool_s.init([#("width", "36"), #("height", "24"), #("pointiness", "30")])
+  |> should.equal(
+    cool_s.Model(..defaults, width: 36.0, height: 24.0, pointiness: 30.0),
+  )
+
+  cool_s.init([
+    #("width", "100.5"),
+    #("height", "-1.25"),
+    #("pointiness", "99.5"),
+  ])
+  |> should.equal(
+    cool_s.Model(..defaults, width: 46.0, height: 8.0, pointiness: 40.0),
+  )
+
+  cool_s.init([#("width", "invalid"), #("height", "NaN"), #("pointiness", "")])
+  |> should.equal(defaults)
 }
 
 pub fn add_remove_and_edit_test() {
