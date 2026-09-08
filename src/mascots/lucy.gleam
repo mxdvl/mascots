@@ -9,8 +9,9 @@ import lustre/element/html
 import lustre/element/svg
 import lustre/event
 
+/// Colours run from the outermost ribbon to the centre fill.
 pub type Model {
-  Model(count: Int, colour: String)
+  Model(count: Int, colours: List(String))
 }
 
 pub type Message {
@@ -21,8 +22,20 @@ pub type Message {
 /// that needs to refer to it - e.g. the tab that selects it.
 pub const id = "lucy"
 
+const ribbon_clip_id = "lucy_ribbons"
+
+const max_colours = 6
+
+const default_colour = "ffaff3"
+
+const ribbon_depth = 18.0
+
+const border_width = 3.0
+
+const face_halo_blur = 0.6
+
 fn defaults() -> Model {
-  Model(count: 7, colour: "ffaff3")
+  Model(count: 7, colours: [default_colour])
 }
 
 /// Builds the initial model, restoring settings from the given query pairs
@@ -37,12 +50,32 @@ pub fn init(pairs: List(#(String, String))) -> Model {
     |> result.map(int.clamp(_, min: 3, max: 27))
     |> result.unwrap(fallback.count)
 
-  let colour =
+  let colours =
     pairs
-    |> list.key_find("colour")
-    |> result.unwrap(fallback.colour)
+    |> list.key_filter("colour")
+    |> list.flat_map(string.split(_, ","))
+    |> list.filter(fn(colour) { colour != "" })
+    |> list.take(max_colours)
+    |> list.map(normalise_colour)
+  let colours = case colours {
+    [] -> fallback.colours
+    colours -> colours
+  }
 
-  Model(count:, colour:)
+  Model(count:, colours:)
+}
+
+fn normalise_colour(colour: String) -> String {
+  let colour = colour |> string.remove_prefix("#") |> string.lowercase
+  let valid =
+    string.length(colour) == 6
+    && list.all(string.to_graphemes(colour), fn(digit) {
+      string.contains("0123456789abcdef", digit)
+    })
+  case valid {
+    True -> colour
+    False -> default_colour
+  }
 }
 
 pub fn update(model: Model, message: Message) -> Model {
@@ -54,7 +87,10 @@ pub fn update(model: Model, message: Message) -> Model {
 /// Serialises the model to query pairs, so its settings can be shared via a
 /// link (see `init`).
 pub fn to_pairs(model: Model) -> List(#(String, String)) {
-  [#("count", int.to_string(model.count)), #("colour", model.colour)]
+  [
+    #("count", int.to_string(model.count)),
+    ..list.map(model.colours, fn(colour) { #("colour", colour) })
+  ]
 }
 
 const border = "#1e1e1e"
@@ -65,10 +101,9 @@ pub fn view(model: Model) -> Element(Message) {
       [
         attribute.id(id),
         attribute.attribute("viewBox", "-60 -60 120 120"),
-        attribute.attribute("stroke-width", int.to_string(3)),
+        attribute.attribute("stroke-width", float.to_string(border_width)),
         attribute.attribute("stroke-linecap", "round"),
         attribute.attribute("stroke-linejoin", "round"),
-        attribute.attribute("fill", "#" <> model.colour),
         attribute.attribute("stroke", border),
       ],
       [
@@ -76,10 +111,7 @@ pub fn view(model: Model) -> Element(Message) {
           [
             attribute.attribute("transform", "rotate(-13)"),
           ],
-          [
-            svg.path([attribute.attribute("d", star_path(model.count))]),
-            face(),
-          ],
+          [body(model)],
         ),
       ],
     ),
@@ -92,16 +124,92 @@ pub fn view(model: Model) -> Element(Message) {
   ])
 }
 
+/// Clip broad outline strokes to the inside of the star, then paint them
+/// widest first. Unlike scaled stars, these bands keep a consistent width
+/// around the rounded tips and valleys, without changing Lucy's silhouette.
+fn body(model: Model) -> Element(Message) {
+  let outline = star_path(model.count)
+  let centre_colour =
+    model.colours |> list.last |> result.unwrap(default_colour)
+  let band_count = list.length(model.colours) - 1
+  // The outline covers half its width inside the star; start the visible
+  // stripes after it, rather than letting it hide the outermost colour.
+  let visible_depth = ribbon_depth -. border_width /. 2.0
+  let ribbons = {
+    use colour, index <- list.index_map(list.take(model.colours, band_count))
+    let fraction = int.to_float(index + 1) /. int.to_float(band_count)
+    let width = border_width +. 2.0 *. visible_depth *. fraction
+    svg.path([
+      attribute.attribute("d", outline),
+      attribute.attribute("fill", "none"),
+      attribute.attribute("stroke", "#" <> colour),
+      attribute.attribute("stroke-width", float.to_string(width)),
+    ])
+  }
+  element.fragment([
+    svg.defs([], [
+      svg.clip_path([attribute.id(ribbon_clip_id)], [
+        svg.path([attribute.attribute("d", outline)]),
+      ]),
+    ]),
+    svg.path([
+      attribute.attribute("d", outline),
+      attribute.attribute("fill", "#" <> centre_colour),
+      attribute.attribute("stroke", "none"),
+    ]),
+    svg.g(
+      [attribute.attribute("clip-path", "url(#" <> ribbon_clip_id <> ")")],
+      list.reverse(ribbons),
+    ),
+    svg.path([
+      attribute.attribute("d", outline),
+      attribute.attribute("fill", "none"),
+    ]),
+    face(face_colour(centre_colour), band_count > 0),
+  ])
+}
+
+fn face_colour(colour: String) -> String {
+  let channel = fn(offset: Int) {
+    colour
+    |> string.slice(offset, 2)
+    |> int.base_parse(16)
+    |> result.unwrap(0)
+  }
+  let brightness = 299 * channel(0) + 587 * channel(2) + 114 * channel(4)
+  case brightness < 128_000 {
+    True -> "#ffffff"
+    False -> border
+  }
+}
+
 /// A simple, friendly face, sitting in the middle of the star regardless of
 /// how many branches it has, since the body's radius never changes.
-fn face() -> Element(Message) {
+fn face(colour: String, has_ribbons: Bool) -> Element(Message) {
   let x = 12
   let y = 3
   let radius = 3
   let mouth = 3
   let offset = 2
+  // Outline the whole face's alpha, without duplicating its geometry.
+  let halo_colour = case has_ribbons, colour == border {
+    False, _ -> "transparent"
+    True, True -> "white"
+    True, False -> border
+  }
   svg.g(
-    [attribute.attribute("stroke", "none"), attribute.attribute("fill", border)],
+    [
+      attribute.attribute("stroke", "none"),
+      attribute.attribute("fill", colour),
+      attribute.attribute(
+        "style",
+        "filter: drop-shadow(0 0 "
+          <> float.to_string(face_halo_blur)
+          <> "px "
+          <> halo_colour
+          <> ")",
+      ),
+    ],
     [
       // eyes
       svg.circle([
@@ -117,7 +225,7 @@ fn face() -> Element(Message) {
       // mouth
       svg.path([
         attribute.attribute("fill", "none"),
-        attribute.attribute("stroke", border),
+        attribute.attribute("stroke", colour),
         attribute.attribute(
           "d",
           [
