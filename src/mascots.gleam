@@ -89,6 +89,8 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
     _ -> {
       let mascot = case model.mascot, message {
+        CoolS(model), UserSelectedLucy ->
+          Lucy(lucy.init(cool_s.to_pairs(model)))
         _, UserSelectedLucy -> Lucy(lucy.init(current_pairs()))
         _, UserSelectedPenelopea -> Penelopea(penelopea.init(current_pairs()))
         _, UserSelectedCoolS -> CoolS(cool_s.init(current_pairs()))
