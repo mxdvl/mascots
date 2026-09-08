@@ -72,6 +72,15 @@ body {
         height: 26rem;
     }
 
+    .cool-s-rotation {
+        transform-box: view-box;
+        transition: transform 400ms ease-in-out;
+
+        @media (prefers-reduced-motion: reduce) {
+            transition: none;
+        }
+    }
+
     .pride-presets,
     .ribbon-controls {
         grid-column: 1 / -1;
@@ -145,7 +154,7 @@ body {
 
     .ribbon-row {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr) auto auto;
         gap: 0.75rem;
         margin-bottom: 0.5rem;
 
