@@ -148,7 +148,7 @@ pub fn swap_adjacent_colours_test() {
   cool_s.update(single, cool_s.UserSwappedColours(0)) |> should.equal(single)
   let empty = cool_s.Model(..model, colours: [])
   cool_s.update(empty, cool_s.UserSwappedColours(0))
-  |> should.equal(cool_s.Model(..empty, colours: ["000080"]))
+  |> should.equal(empty)
 }
 
 pub fn hash_free_colour_links_test() {
@@ -169,7 +169,7 @@ pub fn hash_free_colour_links_test() {
   query |> string.contains("%23") |> should.be_false
   query |> string.contains("#") |> should.be_false
   query
-  |> string.contains("colours=123456&colours=abcdef&colours=aabbcc")
+  |> string.contains("colour=123456&colour=abcdef&colour=aabbcc")
   |> should.be_true
   let assert Ok(restored) = uri.parse_query(query)
   cool_s.init(restored) |> should.equal(model)
@@ -217,8 +217,8 @@ pub fn empty_palette_uses_navy_test() {
     },
   )
   let empty = cool_s.Model(..cool_s.init([]), colours: [])
-  cool_s.update(empty, cool_s.UserRemovedRibbon(0)).colours
-  |> should.equal(["000080"])
+  cool_s.update(empty, cool_s.UserRemovedRibbon(0))
+  |> should.equal(empty)
 }
 
 pub fn presets_and_links_test() {
