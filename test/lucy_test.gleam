@@ -62,30 +62,14 @@ pub fn live_edited_cool_s_palette_transfers_and_round_trips_test() {
       #("colour", "123456,abcdef,123456,ff0000,00ff00,000000,ffffff"),
     ])
     |> cool_s.update(cool_s.UserChangedColour(1, "#AABBCC"))
+  let colours = ["123456", "aabbcc", "123456", "ff0000", "00ff00", "000000"]
   let transferred = edited |> cool_s.to_pairs |> lucy.init
-  transferred
-  |> should.equal(
-    lucy.Model(count: 7, colours: [
-      "123456",
-      "aabbcc",
-      "123456",
-      "ff0000",
-      "00ff00",
-      "000000",
-    ]),
-  )
+  transferred |> should.equal(lucy.Model(count: 7, colours:))
 
   let pairs = lucy.to_pairs(transferred)
-  pairs
-  |> should.equal([
-    #("count", "7"),
-    #("colour", "123456"),
-    #("colour", "aabbcc"),
-    #("colour", "123456"),
-    #("colour", "ff0000"),
-    #("colour", "00ff00"),
-    #("colour", "000000"),
-  ])
+  list.key_find(pairs, "count") |> should.equal(Ok("7"))
+  list.key_filter(pairs, "colour") |> should.equal(colours)
+  list.length(pairs) |> should.equal(7)
   let query = uri.query_to_string(pairs)
   query |> string.contains("#") |> should.be_false
   query |> string.contains("%23") |> should.be_false
@@ -119,6 +103,7 @@ pub fn clipped_palette_and_white_face_on_black_centre_render_test() {
       "fill=\"#000000\"",
       "fill=\"#ffffff\"",
       "stroke=\"#ffffff\"",
+      "filter: drop-shadow(",
       "<circle",
     ],
     fn(fragment) { markup |> string.contains(fragment) |> should.be_true },

@@ -32,7 +32,7 @@ const ribbon_depth = 18.0
 
 const border_width = 3.0
 
-const face_halo_width = 1.2
+const face_halo_blur = 0.6
 
 fn defaults() -> Model {
   Model(count: 7, colours: [default_colour])
@@ -183,65 +183,64 @@ fn face_colour(colour: String) -> String {
   }
 }
 
-/// A contrasting edge keeps the face readable where wide ribbons pass
-/// underneath it. Single-colour Lucy retains her original unoutlined face.
+/// A simple, friendly face, sitting in the middle of the star regardless of
+/// how many branches it has, since the body's radius never changes.
 fn face(colour: String, has_ribbons: Bool) -> Element(Message) {
-  let eye_offset = 12.0
-  let eye_height = -3.0
-  let eye_radius = 3.0
-  let mouth_radius = 3.0
-  let mouth_offset = 2.0
+  let x = 12
+  let y = 3
+  let radius = 3
+  let mouth = 3
+  let offset = 2
+  // Outline the whole face's alpha, without duplicating its geometry.
   let halo_colour = case has_ribbons, colour == border {
-    False, _ -> "none"
-    True, True -> "#ffffff"
+    False, _ -> "transparent"
+    True, True -> "white"
     True, False -> border
   }
-  let mouth_path =
-    "M"
-    <> float.to_string(0.0 -. mouth_radius)
-    <> ","
-    <> float.to_string(mouth_offset)
-    <> " A"
-    <> float.to_string(mouth_radius)
-    <> ","
-    <> float.to_string(mouth_radius)
-    <> " 0 0 0 "
-    <> float.to_string(mouth_radius)
-    <> ","
-    <> float.to_string(mouth_offset)
-
   svg.g(
     [
+      attribute.attribute("stroke", "none"),
       attribute.attribute("fill", colour),
-      attribute.attribute("stroke", halo_colour),
-      attribute.attribute("stroke-width", float.to_string(face_halo_width)),
-      attribute.attribute("paint-order", "stroke fill"),
+      attribute.attribute(
+        "style",
+        "filter: drop-shadow(0 0 "
+          <> float.to_string(face_halo_blur)
+          <> "px "
+          <> halo_colour
+          <> ")",
+      ),
     ],
     [
+      // eyes
       svg.circle([
-        attribute.attribute("cx", float.to_string(0.0 -. eye_offset)),
-        attribute.attribute("cy", float.to_string(eye_height)),
-        attribute.attribute("r", float.to_string(eye_radius)),
+        attribute.attribute("cx", int.to_string(-x)),
+        attribute.attribute("cy", int.to_string(-y)),
+        attribute.attribute("r", int.to_string(radius)),
       ]),
       svg.circle([
-        attribute.attribute("cx", float.to_string(eye_offset)),
-        attribute.attribute("cy", float.to_string(eye_height)),
-        attribute.attribute("r", float.to_string(eye_radius)),
+        attribute.attribute("cx", int.to_string(x)),
+        attribute.attribute("cy", int.to_string(-y)),
+        attribute.attribute("r", int.to_string(radius)),
       ]),
+      // mouth
       svg.path([
-        attribute.attribute("d", mouth_path),
-        attribute.attribute("fill", "none"),
-        attribute.attribute("stroke", halo_colour),
-        attribute.attribute(
-          "stroke-width",
-          float.to_string(border_width +. face_halo_width),
-        ),
-      ]),
-      svg.path([
-        attribute.attribute("d", mouth_path),
         attribute.attribute("fill", "none"),
         attribute.attribute("stroke", colour),
-        attribute.attribute("stroke-width", float.to_string(border_width)),
+        attribute.attribute(
+          "d",
+          [
+            "M" <> int.to_string(-mouth) <> "," <> int.to_string(offset),
+            "A"
+              <> int.to_string(mouth)
+              <> ","
+              <> int.to_string(mouth)
+              <> " 0 0 0 "
+              <> int.to_string(mouth)
+              <> ","
+              <> int.to_string(offset),
+          ]
+            |> string.join(" "),
+        ),
       ]),
     ],
   )
